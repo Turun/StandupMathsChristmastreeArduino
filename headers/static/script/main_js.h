@@ -1,0 +1,84 @@
+#pragma once
+
+// Auto-generated from: main.js
+const char main_js[] PROGMEM = R"rawliteral(
+// This file coordinates the other js files and is supposed to be the only
+// one that has true procedural code in it. all other files should only provide
+// functional methods which can be called without relying on global state.
+
+import { setup_ui } from "./ui.js";
+
+const num_leds = 20;
+const num_cycles = num_leds;
+const led_positions_raw_x = [];
+const led_positions_raw_y = [];
+const led_positions_normalized = [];
+
+// Select HTML elements
+const video = document.getElementById('video');
+const diff_canvas = document.getElementById("canvas-diff");
+const diff_context = diff_canvas.getContext("2d", { willReadFrequently: true });
+
+// for saving intermediate results
+const math_canvas = new OffscreenCanvas(100, 100);  // actual size will be set once we have a video feed
+const math_ctx = math_canvas.getContext('2d', { willReadFrequently: true });
+
+// get the list of all canvases which we will need to do math.
+const canvases_x = [];
+const contexts_x = [];
+for (const i of Array(num_cycles).keys()) {
+    let can = new OffscreenCanvas(100, 100);
+    let ctx = can.getContext('2d', { willReadFrequently: true });
+    canvases_x.push(can);
+    contexts_x.push(ctx);
+}
+// get the list of all canvases which we will need to do math.
+const canvases_y = [];
+const contexts_y = [];
+for (const i of Array(num_cycles).keys()) {
+    let can = new OffscreenCanvas(100, 100);
+    let ctx = can.getContext('2d', { willReadFrequently: true });
+    canvases_y.push(can);
+    contexts_y.push(ctx);
+}
+
+// TODO: next up we will have to implement x and y scan and then stitch together the coordinates to get 3D position information.
+
+
+// on load this will run
+setup_ui(
+    num_leds,
+    num_cycles,
+    video,
+    canvases_x,
+    canvases_y,
+    contexts_x,
+    contexts_y,
+    math_canvas,
+    diff_canvas,
+    diff_context,
+    led_positions_raw_x,
+    led_positions_raw_y,
+    led_positions_normalized,
+);
+
+
+
+
+
+
+
+
+
+/*
+main.js -> tell ui to set up data, manages data,
+ui.js all the dirty code to interact with the ui
+capture_unidirectional.js the methods necessary to build the pipeline to capture pixel coordinates from one direction
+merge_directions.js given two sets of pixel coordinates, merge, normalize, transmit to server
+
+
+
+*/
+
+
+)rawliteral";
