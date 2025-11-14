@@ -189,7 +189,7 @@ void handleSetNumLEDs() {
     server.send(400, "text/plain", String("JSON parse error: ") + err.c_str());
     return;
   }
-  if (!doc.containsKey("num")) {
+  if (!doc["num"].is<int>()) {
     server.send(400,"text/plain","missing num");
     return;
   }
@@ -229,11 +229,12 @@ void handleSetNumLEDs() {
 }
 
 void handleGetNumLEDs() {
-  DynamicJsonDocument out(64);
+  JsonDocument out;
   out["num"] = numPixels;
   String s;
   serializeJson(out, s);
   server.send(200, "application/json", s);
+
 }
 
 void handleNotFound() {
