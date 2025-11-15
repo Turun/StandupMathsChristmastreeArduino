@@ -18,6 +18,7 @@
 */
 
 #include <WiFi.h>
+#include <ESPmDNS.h>
 #include <WebServer.h>
 #include <Adafruit_NeoPixel.h>
 #include <Preferences.h>
@@ -90,7 +91,7 @@ void redrawPixels() {
   if (!pixels) return;
   for (uint16_t i = 0; i < numPixels; ++i) {
     if (ledState[i]) {
-      pixels->setPixelColor(i, pixels->Color(100, 100, 100));
+      pixels->setPixelColor(i, pixels->Color(255, 255, 255));
     } else {
       pixels->setPixelColor(i, pixels->Color(0, 0, 0));
     }
@@ -243,9 +244,16 @@ void handleNotFound() {
 
 // ------------------------- Setup & loop -------------------------
 void setup() {
-  Serial.begin(115200);
   pinMode(LED_BUILTIN_PIN, OUTPUT);
   digitalWrite(LED_BUILTIN_PIN, HIGH);
+  
+  Serial.begin(115200);
+  // wait for userinput from serial connection
+  // pressing ctrl+d in `screen /dev/ttyUSBx 115200` increases the number returned from Serial.available() by 1
+  // workflow is flashing, then in the Terminal doing: `screen -S ESP /dev/ttyUSB0 115200  && screen -X -S ESP quit` and in screen, pressing ctrl+d to start, ctrl+ad to detach and quit
+  while (!(Serial.available())) {  
+    delay(100);
+  }
 
   prefs.begin("ledcfg", false);
 
@@ -267,6 +275,14 @@ void setup() {
   IPAddress apIP = WiFi.softAPIP();
   Serial.print("AP IP address: ");
   Serial.println(apIP);
+
+  // Start mDNS so device is reachable as http://leds.local
+  if (!MDNS.begin("leds")) {
+      Serial.println("Error: mDNS responder failed to start");
+  } else {
+      Serial.println("mDNS responder started: http://leds.local");
+  }
+  MDNS.addService("http", "tcp", 80);  // Advertise the HTTP service
 
   // Routes
   server.on("/", HTTP_GET, handleRoot);

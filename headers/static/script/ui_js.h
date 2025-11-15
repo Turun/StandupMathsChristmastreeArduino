@@ -202,8 +202,12 @@ function startCamera(
     math_canvas,
     canvases,
 ) {
-    navigator.mediaDevices.getUserMedia({ video: true })
-        .then((stream) => {
+    // TODO: ideally we let the user pick. there is a navigator.mediaDevices.enumerateDevices(); method for that
+    navigator.mediaDevices.getUserMedia({
+        video: {
+            facingMode: "environment"
+        }
+    }).then((stream) => {
             video.srcObject = stream;
 
             // Wait until metadata (including dimensions) is available
@@ -226,6 +230,9 @@ function startCamera(
             console.error("Error accessing the camera: ", error);
             alert("Could not access the camera. Please allow permissions and try again.");
         });
+    if (typeof variable == 'undefined') {
+        alert("can't access video on http sites. On firefox enable media.devices.insecure.enabled and media.getusermedia.insecure.enabled in about:config (chrome://geckoview/content/config.xhtml on mobile for some reason)");
+    }
 }
 
 
@@ -246,8 +253,8 @@ export function setup_ui(
 ) {
     window.addEventListener('load', () => startCamera(video, diff_canvas, math_canvas, canvases_x.concat(canvases_y)));
     const startButtonX = document.getElementById('start-btn-x');
-    startButtonX.addEventListener('click', () => {
-        start_capturing(
+    startButtonX.addEventListener('click', async () => {
+        await start_capturing(
             num_leds,
             num_cycles,
             video,
@@ -265,8 +272,8 @@ export function setup_ui(
         
     });
     const startButtonY = document.getElementById('start-btn-y');
-    startButtonY.addEventListener('click', () => {
-        start_capturing(
+    startButtonY.addEventListener('click', async () => {
+        await start_capturing(
             num_leds,
             num_cycles,
             video,

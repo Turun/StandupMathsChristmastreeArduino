@@ -8,7 +8,7 @@ const char main_js[] PROGMEM = R"rawliteral(
 
 import { setup_ui } from "./ui.js";
 
-const num_leds = 20;
+const num_leds = 100;  // TODO: make this configurable
 const num_cycles = num_leds;
 const led_positions_raw_x = [];
 const led_positions_raw_y = [];
