@@ -312,7 +312,7 @@ export function setup_ui(
          planes();
     });
     const effectStopButton = document.getElementById('effect-stop-btn');
-    effectSweepingPlanesButton.addEventListener('click', () => {
+    effectStopButton.addEventListener('click', () => {
          stop();
     });
 

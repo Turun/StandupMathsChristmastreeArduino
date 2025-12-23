@@ -356,7 +356,7 @@ void setup() {
 
   server.on("/set_num_leds", HTTP_POST, handleSetNumLEDs);
   server.on("/get_num_leds", HTTP_GET, handleGetNumLEDs);
-
+  
   server.on("/effects/stop", HTTP_POST, handleStopEffects);
   server.on("/effects/blink", HTTP_POST, handleStartBlinkEffect);
 
