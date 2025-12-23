@@ -42,9 +42,6 @@ for (const i of Array(num_cycles).keys()) {
     contexts_y.push(ctx);
 }
 
-// TODO: next up we will have to implement x and y scan and then stitch together the coordinates to get 3D position information.
-
-
 // on load this will run
 setup_ui(
     num_leds,
@@ -63,21 +60,11 @@ setup_ui(
 );
 
 
-
-
-
-
-
-
-
 /*
 main.js -> tell ui to set up data, manages data,
 ui.js all the dirty code to interact with the ui
 capture_unidirectional.js the methods necessary to build the pipeline to capture pixel coordinates from one direction
 merge_directions.js given two sets of pixel coordinates, merge, normalize, transmit to server
-
-
-
 */
 
 

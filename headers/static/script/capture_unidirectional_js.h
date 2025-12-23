@@ -97,39 +97,6 @@ async function capture_lock_in_data(num_leds, num_cycles, video, contexts){
             data[led_index] = is_led_on(led_index, shift);
         }
         configure_leds(data);
-        // TODO: this could be improved:
-        /*
-        1. requestVideoFrameCallback (RVFC) — best high-level API
-        This fires once per new decoded video frame, never more, never less. It is exactly what you want:
-        ```
-        function waitForNextCameraFrame(video) {
-          return new Promise(resolve => {
-            video.requestVideoFrameCallback((_, metadata) => {
-              resolve(metadata); // exact camera timestamp, etc.
-            });
-          });
-        }
-        ```
-        This ensures:
-        You wait until the camera actually produced a new frame
-        No duplicates
-        No missed frames
-        You get true capture timestamps (excellent for synchronization)
-
-        2. WebCodecs: MediaStreamTrackProcessor (most precise, low-level)
-        This delivers actual VideoFrame objects directly from the camera at the moment they’re captured:
-        ```
-        const processor = new MediaStreamTrackProcessor({ track });
-        const reader = processor.readable.getReader();
-
-        async function waitForFrame() {
-          const { value: frame } = await reader.read();
-          // frame.timestamp is the real capture timestamp
-          return frame;
-        }
-        ```
-        This is the most precise possible method in the browser today.
-        */
         
         // Wait until the camera produces the next decoded frame (or fallback).
         await waitForNextCameraFrame(video);
@@ -284,6 +251,8 @@ export async function start_capturing(
     blur_images(contexts);
     console.log("analyzing lock in data...");
     analyze_lock_in_data(num_leds, num_cycles, math_canvas, contexts, led_positions_raw);
+    console.log("Fix LED positions which are unrealistic...")
+    // TODO
     console.log("visualizing LED positions...");
     visualize_led_positions(
         diff_context,

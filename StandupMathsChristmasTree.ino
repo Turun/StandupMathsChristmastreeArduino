@@ -26,9 +26,7 @@
 
 #include <ArduinoJson.h>
 
-// ---- Include your file-content headers here ----
-// Place generated header files (see instructions below) in the same folder as the sketch.
-// Example header names used here:
+// ---- Include file-content headers here ----
 #include "headers/templates/index_html.h"
 #include "headers/static/style_css.h"
 #include "headers/static/script/main_js.h"
@@ -42,7 +40,7 @@
 
 #define LED_BUILTIN_PIN 2
 #define STRIP_PIN_DEFAULT 13
-#define STRIP_NUMPIXELS_DEFAULT 100
+#define STRIP_NUMPIXELS_DEFAULT 500
 
 Preferences prefs;
 
@@ -251,9 +249,9 @@ void setup() {
   // wait for userinput from serial connection
   // pressing ctrl+d in `screen /dev/ttyUSBx 115200` increases the number returned from Serial.available() by 1
   // workflow is flashing, then in the Terminal doing: `screen -S ESP /dev/ttyUSB0 115200  && screen -X -S ESP quit` and in screen, pressing ctrl+d to start, ctrl+ad to detach and quit
-  while (!(Serial.available())) {  
-    delay(100);
-  }
+  // while (!(Serial.available())) {  
+    // delay(100);
+  // }
 
   prefs.begin("ledcfg", false);
 
@@ -304,6 +302,58 @@ void setup() {
   server.begin();
   Serial.println("HTTP server started on port 80");
 
+
+
+  // test functionality: light up all leds one after the other
+  digitalWrite(LED_BUILTIN_PIN, LOW);
+  delay(1000);
+  digitalWrite(LED_BUILTIN_PIN, HIGH);
+  for (int i = 0; i<numPixels; i++) {
+    ledState[i] = true;
+    redrawPixels();
+    delay(50);
+    ledState[i] = false;
+  }
+  for (int i = 0; i<numPixels; i++) {
+      ledState[i] = false;
+  }
+  redrawPixels();
+  
+  // test functionality: light up every xth led
+  digitalWrite(LED_BUILTIN_PIN, LOW);
+  delay(1000);
+  digitalWrite(LED_BUILTIN_PIN, HIGH);
+  for (int mod = 5; mod<10; mod++){
+    for (int i = 0; i<numPixels; i++) {
+      if (i % mod == 0) {
+        ledState[i] = true;
+      } else {
+        ledState[i] = false;
+      }
+    }
+    redrawPixels();
+    delay(500);
+  }
+  for (int i = 0; i<numPixels; i++) {
+      ledState[i] = false;
+  }
+  redrawPixels();
+  
+  // test functionality: light up all leds at once
+  digitalWrite(LED_BUILTIN_PIN, LOW);
+  delay(1000);
+  digitalWrite(LED_BUILTIN_PIN, HIGH);
+  for (int i = 0; i<numPixels; i++) {
+    ledState[i] = true;
+    redrawPixels();
+    delay(50);
+  }
+  delay(1000);
+  for (int i = 0; i<numPixels; i++) {
+    ledState[i] = false;
+  }
+  redrawPixels();
+  
   digitalWrite(LED_BUILTIN_PIN, LOW);
 }
 
