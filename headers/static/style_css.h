@@ -85,6 +85,15 @@ video, canvas {
     background-color: #c0392b;
 }
 
+.blue-btn {
+    background-color: #3498db;
+    color: white;
+}
+
+.blue-btn:hover {
+    background-color: #2980b9;
+}
+
 .controls-container button:not(.action-btn) {
     background-color: #4CAF50;
     color: white;

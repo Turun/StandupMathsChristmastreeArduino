@@ -37,6 +37,9 @@ const char index_html[] PROGMEM = R"rawliteral(
         </div>
         <button disabled id="overview-btn-y">Show Overview Y</button>
         <button id="transmit-btn" class="action-btn">Transmit 3D pos</button>
+        <button id="effect-blink-btn" class="blue-btn">Blink</button>
+        <button id="effect-sweeping-plane-btn" class="blue-btn">Sweeping Plane</button>
+        <button id="effect-stop-btn" class="action-btn">Stop Effects</button>
       </div>
 
       <!-- Diff canvas -->

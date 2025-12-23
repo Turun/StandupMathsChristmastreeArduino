@@ -33,6 +33,7 @@
 #include "headers/static/script/ui_js.h"
 #include "headers/static/script/merge_directions_js.h"
 #include "headers/static/script/capture_unidirectional_js.h"
+#include "headers/static/script/effects_js.h"
 // Each header must define a PROGMEM const char array, e.g.:
 //   const char index_html[] PROGMEM = R"rawliteral(...your html...)rawliteral";
 
@@ -49,6 +50,18 @@ uint16_t numPixels = STRIP_NUMPIXELS_DEFAULT;
 uint8_t stripPin = STRIP_PIN_DEFAULT;
 
 bool *ledState = nullptr; // dynamic array sized to numPixels
+
+// save which effect is currently running
+enum EffectType {
+  EFFECT_NONE = 0,
+  EFFECT_BLINK,
+  // future:
+  // EFFECT_PULSE,
+  // EFFECT_CHASE,
+};
+EffectType currentEffect = EFFECT_NONE;
+unsigned long effectStartTimeMs = 0;
+
 
 WebServer server(80);
 
@@ -107,6 +120,41 @@ String ledStateToJsonString() {
   return out;
 }
 
+void stopAllEffects() {
+  currentEffect = EFFECT_NONE;
+  effectStartTimeMs = 0;
+
+  // reset LEDs to a known state
+  for (uint16_t i = 0; i < numPixels; ++i) {
+    ledState[i] = false;
+  }
+  redrawPixels();
+}
+
+void startEffect(EffectType effect) {
+  // stop whatever was running
+  stopAllEffects();
+
+  // start new effect
+  currentEffect = effect;
+  effectStartTimeMs = millis();
+}
+
+// -------------------- The Effects -----------------------
+void updateBlinkEffect(unsigned long now) {
+  // elapsed time since effect started
+  unsigned long elapsed = now - effectStartTimeMs;
+
+  // 1 Hz blink: toggle every 1000 ms
+  bool on = ((elapsed / 1000) % 2) == 0;
+
+  for (uint16_t i = 0; i < numPixels; ++i) {
+    ledState[i] = on;
+  }
+
+  redrawPixels();
+}
+
 // -------------------- HTTP handlers -----------------------
 void handleRoot() { server.send_P(200, "text/html", index_html); }
 void handleStyle() { server.send_P(200, "text/css", style_css); }
@@ -114,6 +162,7 @@ void handleMainJs() { server.send_P(200, "application/javascript", main_js); }
 void handleUiJs() { server.send_P(200, "application/javascript", ui_js); }
 void handleMergeJs() { server.send_P(200, "application/javascript", merge_directions_js); }
 void handleCaptureJs() { server.send_P(200, "application/javascript", capture_unidirectional_js); }
+void handleEffectsJs() { server.send_P(200, "application/javascript", effects_js); }
 
 void handleConfigureLEDs() {
   String body = getRequestBody();
@@ -236,6 +285,16 @@ void handleGetNumLEDs() {
 
 }
 
+void handleStopEffects() {
+  stopAllEffects();
+  server.send(200, "text/plain", "effects stopped");
+}
+
+void handleStartBlinkEffect() {
+  startEffect(EFFECT_BLINK);
+  server.send(200, "text/plain", "blink effect started");
+}
+
 void handleNotFound() {
   server.send(404, "text/plain", "Not found");
 }
@@ -289,6 +348,7 @@ void setup() {
   server.on("/static/script/ui.js", HTTP_GET, handleUiJs);
   server.on("/static/script/merge_directions.js", HTTP_GET, handleMergeJs);
   server.on("/static/script/capture_unidirectional.js", HTTP_GET, handleCaptureJs);
+  server.on("/static/script/effects.js", HTTP_GET, handleEffectsJs);
 
   server.on("/configure_leds", HTTP_POST, handleConfigureLEDs);
   server.on("/set_led_positions", HTTP_POST, handleSetLedPositions);
@@ -296,6 +356,10 @@ void setup() {
 
   server.on("/set_num_leds", HTTP_POST, handleSetNumLEDs);
   server.on("/get_num_leds", HTTP_GET, handleGetNumLEDs);
+
+  server.on("/effects/stop", HTTP_POST, handleStopEffects);
+  server.on("/effects/blink", HTTP_POST, handleStartBlinkEffect);
+
 
   server.onNotFound(handleNotFound);
 
@@ -306,12 +370,12 @@ void setup() {
 
   // test functionality: light up all leds one after the other
   digitalWrite(LED_BUILTIN_PIN, LOW);
-  delay(1000);
+  delay(500);
   digitalWrite(LED_BUILTIN_PIN, HIGH);
   for (int i = 0; i<numPixels; i++) {
     ledState[i] = true;
     redrawPixels();
-    delay(50);
+    delay(10);
     ledState[i] = false;
   }
   for (int i = 0; i<numPixels; i++) {
@@ -321,7 +385,7 @@ void setup() {
   
   // test functionality: light up every xth led
   digitalWrite(LED_BUILTIN_PIN, LOW);
-  delay(1000);
+  delay(500);
   digitalWrite(LED_BUILTIN_PIN, HIGH);
   for (int mod = 5; mod<10; mod++){
     for (int i = 0; i<numPixels; i++) {
@@ -332,7 +396,7 @@ void setup() {
       }
     }
     redrawPixels();
-    delay(500);
+    delay(100);
   }
   for (int i = 0; i<numPixels; i++) {
       ledState[i] = false;
@@ -341,14 +405,14 @@ void setup() {
   
   // test functionality: light up all leds at once
   digitalWrite(LED_BUILTIN_PIN, LOW);
-  delay(1000);
+  delay(500);
   digitalWrite(LED_BUILTIN_PIN, HIGH);
   for (int i = 0; i<numPixels; i++) {
     ledState[i] = true;
     redrawPixels();
-    delay(50);
+    delay(10);
   }
-  delay(1000);
+  delay(500);
   for (int i = 0; i<numPixels; i++) {
     ledState[i] = false;
   }
@@ -359,4 +423,16 @@ void setup() {
 
 void loop() {
   server.handleClient();
+
+  unsigned long now = millis();
+
+  switch (currentEffect) {
+    case EFFECT_BLINK:
+      updateBlinkEffect(now);
+      break;
+    case EFFECT_NONE:
+    default:
+      break;
+  }
 }
+
