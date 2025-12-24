@@ -62,6 +62,11 @@ enum EffectType {
 EffectType currentEffect = EFFECT_NONE;
 unsigned long effectStartTimeMs = 0;
 
+// Global array to store LED positions
+struct Point {
+  float x, y, z;
+};
+Point* ledPositions = nullptr;
 
 WebServer server(80);
 
@@ -74,7 +79,7 @@ String getRequestBody() {
 }
 
 void allocateStrip(uint16_t newNum) {
-  // free previous
+  // Free previous LED state and positions
   if (pixels) {
     pixels->clear();
     pixels->show();
@@ -85,13 +90,21 @@ void allocateStrip(uint16_t newNum) {
     delete[] ledState;
     ledState = nullptr;
   }
+  if (ledPositions) {
+    delete[] ledPositions;
+    ledPositions = nullptr;
+  }
 
   numPixels = newNum;
-  // allocate new state
+  
+  // Allocate new state
   ledState = new bool[numPixels];
   for (uint16_t i = 0; i < numPixels; ++i) ledState[i] = false;
 
-  // instantiate new NeoPixel
+  // Allocate new positions array
+  ledPositions = new Point[numPixels];
+  
+  // Instantiate new NeoPixel
   pixels = new Adafruit_NeoPixel(numPixels, stripPin, NEO_GRB + NEO_KHZ800);
   pixels->begin();
   pixels->clear();
@@ -118,6 +131,45 @@ String ledStateToJsonString() {
   String out;
   serializeJson(doc, out);
   return out;
+}
+
+void loadLedPositionsFromStorage() {
+  String savedJson = prefs.getString("led_positions", "");  // Get the JSON from NV storage
+  if (savedJson.length() == 0) {
+    Serial.println("No LED positions found in storage.");
+    return;
+  }
+
+  // Parse the JSON string to extract LED positions
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, savedJson);
+  if (err) {
+    Serial.println("Error parsing saved LED positions JSON.");
+    return;
+  }
+
+  JsonObject obj = doc.as<JsonObject>();
+  uint16_t newNum = obj.size();
+  
+  // Ensure that the number of LEDs in the JSON matches the number of LEDs you expect
+  if (newNum != numPixels) {
+    prefs.putUInt("num_leds", newNum);
+    allocateStrip(newNum);
+  }
+  numPixels = newNum;
+
+  // Deserialize and populate the ledPositions array
+  for (JsonPair kv : obj) {
+    int idx = atoi(kv.key().c_str());
+    if (idx >= 0 && idx < numPixels) {
+      JsonArray pos = kv.value().as<JsonArray>();
+      ledPositions[idx].x = pos[0].as<float>();
+      ledPositions[idx].y = pos[1].as<float>();
+      ledPositions[idx].z = pos[2].as<float>();
+    }
+  }
+
+  Serial.println("LED positions successfully loaded from storage.");
 }
 
 void stopAllEffects() {
@@ -196,13 +248,13 @@ void handleConfigureLEDs() {
 }
 
 void handleSetLedPositions() {
-  String body = getRequestBody();
+  String body = getRequestBody();  // Get the body of the POST request
   if (body.length() == 0) {
-    server.send(400, "text/plain", "no body");
+    server.send(400, "text/plain", "No body in the request.");
     return;
   }
 
-  // validate parse; we don't interpret content now, just save to NV storage
+  // Parse the incoming JSON string
   JsonDocument doc;
   DeserializationError err = deserializeJson(doc, body);
   if (err) {
@@ -210,16 +262,19 @@ void handleSetLedPositions() {
     return;
   }
 
+  // Save the entire JSON string directly to NV storage
   prefs.putString("led_positions", body);
-  server.send(200, "text/plain", "success");
+  loadLedPositionsFromStorage();
+
+  server.send(200, "text/plain", "LED positions successfully saved.");
 }
 
-void handleGetSavedLedPositions() {
-  String s = prefs.getString("led_positions", "");
-  if (s.length() == 0) {
-    server.send(204, "application/json", "");
+void handleGetLedPositions() {
+  String savedJson = prefs.getString("led_positions", "");  // Retrieve the saved JSON
+  if (savedJson.length() == 0) {
+    server.send(204, "application/json", "");  // Return 204 (No Content) if no data
   } else {
-    server.send(200, "application/json", s);
+    server.send(200, "application/json", savedJson);  // Return the saved JSON
   }
 }
 
@@ -324,6 +379,8 @@ void setup() {
 
   // allocate strip (pixels pointer and ledState)
   allocateStrip(numPixels);
+
+  loadLedPositionsFromStorage();
 
   // Start AP
   const char* ssid = "LEDStrip";
