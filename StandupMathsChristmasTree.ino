@@ -176,6 +176,9 @@ void stopAllEffects() {
   currentEffect = EFFECT_NONE;
   effectStartTimeMs = 0;
 
+  // Save state to NVS
+  prefs.putUInt("last_effect", (uint32_t)EFFECT_NONE);
+
   // reset LEDs to a known state
   for (uint16_t i = 0; i < numPixels; ++i) {
     ledState[i] = false;
@@ -190,6 +193,9 @@ void startEffect(EffectType effect) {
   // start new effect
   currentEffect = effect;
   effectStartTimeMs = millis();
+
+  // Save the new effect to NVS
+  prefs.putUInt("last_effect", (uint32_t)effect);
 }
 
 // -------------------- The Effects -----------------------
@@ -269,7 +275,7 @@ void handleSetLedPositions() {
   server.send(200, "text/plain", "LED positions successfully saved.");
 }
 
-void handleGetLedPositions() {
+void handleGetSavedLedPositions() {
   String savedJson = prefs.getString("led_positions", "");  // Retrieve the saved JSON
   if (savedJson.length() == 0) {
     server.send(204, "application/json", "");  // Return 204 (No Content) if no data
@@ -381,6 +387,10 @@ void setup() {
   allocateStrip(numPixels);
 
   loadLedPositionsFromStorage();
+
+  // Restore the last running effect
+  uint32_t savedEffect = prefs.getUInt("last_effect", (uint32_t)EFFECT_NONE);
+  currentEffect = (EffectType)savedEffect;
 
   // Start AP
   const char* ssid = "LEDStrip";
