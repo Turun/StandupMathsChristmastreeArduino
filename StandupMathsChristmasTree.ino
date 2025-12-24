@@ -55,6 +55,7 @@ bool *ledState = nullptr; // dynamic array sized to numPixels
 enum EffectType {
   EFFECT_NONE = 0,
   EFFECT_BLINK,
+  EFFECT_ALL_ON,
   // future:
   // EFFECT_PULSE,
   // EFFECT_CHASE,
@@ -115,7 +116,7 @@ void redrawPixels() {
   if (!pixels) return;
   for (uint16_t i = 0; i < numPixels; ++i) {
     if (ledState[i]) {
-      pixels->setPixelColor(i, pixels->Color(200, 180, 120));
+      pixels->setPixelColor(i, pixels->Color(50, 50, 50));
     } else {
       pixels->setPixelColor(i, pixels->Color(0, 0, 0));
     }
@@ -203,8 +204,9 @@ void updateBlinkEffect(unsigned long now) {
   // elapsed time since effect started
   unsigned long elapsed = now - effectStartTimeMs;
 
-  // 1 Hz blink: toggle every 1000 ms
-  bool on = ((elapsed / 1000) % 2) == 0;
+  char secs_on = 1;
+  char secs_off = 1;
+  bool on = ((elapsed / 1000) % (secs_on + secs_off)) <= secs_on;
 
   for (uint16_t i = 0; i < numPixels; ++i) {
     ledState[i] = on;
@@ -376,6 +378,8 @@ void setup() {
   prefs.begin("ledcfg", false);
 
   // Restore number of LEDs if saved
+  loadLedPositionsFromStorage();
+
   uint32_t savedNum = prefs.getUInt("num_leds", 0);
   if (savedNum >= 1 && savedNum <= 1024) {
     numPixels = (uint16_t)savedNum;
@@ -385,8 +389,9 @@ void setup() {
 
   // allocate strip (pixels pointer and ledState)
   allocateStrip(numPixels);
+  Serial.print("Currently configured pixels: ");
+  Serial.println(numPixels);
 
-  loadLedPositionsFromStorage();
 
   // Restore the last running effect
   uint32_t savedEffect = prefs.getUInt("last_effect", (uint32_t)EFFECT_NONE);
@@ -435,40 +440,40 @@ void setup() {
 
 
 
-  // test functionality: light up all leds one after the other
-  digitalWrite(LED_BUILTIN_PIN, LOW);
-  delay(500);
-  digitalWrite(LED_BUILTIN_PIN, HIGH);
-  for (int i = 0; i<numPixels; i++) {
-    ledState[i] = true;
-    redrawPixels();
-    delay(10);
-    ledState[i] = false;
-  }
-  for (int i = 0; i<numPixels; i++) {
-      ledState[i] = false;
-  }
-  redrawPixels();
+  //// test functionality: light up all leds one after the other
+  //digitalWrite(LED_BUILTIN_PIN, LOW);
+  //delay(500);
+  //digitalWrite(LED_BUILTIN_PIN, HIGH);
+  //for (int i = 0; i<numPixels; i++) {
+  //  ledState[i] = true;
+  //  redrawPixels();
+  //  delay(10);
+  //  ledState[i] = false;
+  //}
+  //for (int i = 0; i<numPixels; i++) {
+  //    ledState[i] = false;
+  //}
+  //redrawPixels();
   
-  // test functionality: light up every xth led
-  digitalWrite(LED_BUILTIN_PIN, LOW);
-  delay(500);
-  digitalWrite(LED_BUILTIN_PIN, HIGH);
-  for (int mod = 5; mod<10; mod++){
-    for (int i = 0; i<numPixels; i++) {
-      if (i % mod == 0) {
-        ledState[i] = true;
-      } else {
-        ledState[i] = false;
-      }
-    }
-    redrawPixels();
-    delay(100);
-  }
-  for (int i = 0; i<numPixels; i++) {
-      ledState[i] = false;
-  }
-  redrawPixels();
+  //// test functionality: light up every xth led
+  //digitalWrite(LED_BUILTIN_PIN, LOW);
+  //delay(500);
+  //digitalWrite(LED_BUILTIN_PIN, HIGH);
+  //for (int mod = 5; mod<10; mod++){
+  //  for (int i = 0; i<numPixels; i++) {
+  //    if (i % mod == 0) {
+  //      ledState[i] = true;
+  //    } else {
+  //      ledState[i] = false;
+  //    }
+  //  }
+  //  redrawPixels();
+  //  delay(100);
+  //}
+  //for (int i = 0; i<numPixels; i++) {
+  //    ledState[i] = false;
+  //}
+  //redrawPixels();
   
   // test functionality: light up all leds at once
   digitalWrite(LED_BUILTIN_PIN, LOW);
@@ -498,6 +503,11 @@ void loop() {
       updateBlinkEffect(now);
       break;
     case EFFECT_NONE:
+      // do nothing
+      break;
+    case EFFECT_ALL_ON:
+      // do nothing
+      break;
     default:
       break;
   }
