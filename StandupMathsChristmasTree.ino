@@ -115,7 +115,7 @@ void redrawPixels() {
   if (!pixels) return;
   for (uint16_t i = 0; i < numPixels; ++i) {
     if (ledState[i]) {
-      pixels->setPixelColor(i, pixels->Color(255, 255, 255));
+      pixels->setPixelColor(i, pixels->Color(200, 180, 120));
     } else {
       pixels->setPixelColor(i, pixels->Color(0, 0, 0));
     }
