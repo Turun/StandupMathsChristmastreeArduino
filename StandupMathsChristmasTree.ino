@@ -200,8 +200,9 @@ void startEffect(EffectType effect) {
 }
 
 // -------------------- The Effects -----------------------
-void updateBlinkEffect(unsigned long now) {
+void updateBlinkEffect() {
   // elapsed time since effect started
+  unsigned long now = millis();
   unsigned long elapsed = now - effectStartTimeMs;
 
   char secs_on = 1;
@@ -358,6 +359,17 @@ void handleStartBlinkEffect() {
   server.send(200, "text/plain", "blink effect started");
 }
 
+void handleAllOnEffect(){
+  startEffect(EFFECT_ALL_ON);
+
+  for (uint16_t i = 0; i < numPixels; ++i) {
+    ledState[i] = true;
+  }
+  redrawPixels();
+  
+  server.send(200, "text/plain", "effect started");
+}
+
 void handleNotFound() {
   server.send(404, "text/plain", "Not found");
 }
@@ -431,6 +443,7 @@ void setup() {
   
   server.on("/effects/stop", HTTP_POST, handleStopEffects);
   server.on("/effects/blink", HTTP_POST, handleStartBlinkEffect);
+  server.on("/effects/allon", HTTP_POST, handleAllOnEffect);
 
 
   server.onNotFound(handleNotFound);
@@ -496,11 +509,10 @@ void setup() {
 void loop() {
   server.handleClient();
 
-  unsigned long now = millis();
 
   switch (currentEffect) {
     case EFFECT_BLINK:
-      updateBlinkEffect(now);
+      updateBlinkEffect();
       break;
     case EFFECT_NONE:
       // do nothing

@@ -9,9 +9,9 @@ export function blink() {
     xhr.send();
 }
 
-export function planes() {
+export function allOn() {
     var xhr = new XMLHttpRequest();
-    xhr.open("POST", "effects/planes", false);
+    xhr.open("POST", "effects/allon", false);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.send();
 }

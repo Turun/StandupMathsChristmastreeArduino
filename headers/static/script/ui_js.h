@@ -4,7 +4,7 @@
 const char ui_js[] PROGMEM = R"rawliteral(
 import {start_capturing, is_led_on, compute_lock_in_image_data_array} from "./capture_unidirectional.js";
 import { merge_and_transmit } from "./merge_directions.js";
-import {blink, planes, stop} from "./effects.js";
+import {blink, allOn, stop} from "./effects.js";
 
 let current_led_index = 0;
 
@@ -307,9 +307,9 @@ export function setup_ui(
     effectBlinkButton.addEventListener('click', () => {
          blink();
     });
-    const effectSweepingPlanesButton = document.getElementById('effect-sweeping-plane-btn');
-    effectSweepingPlanesButton.addEventListener('click', () => {
-         planes();
+    const effectAllOnButton = document.getElementById('effect-all-on-btn');
+    effectAllOnButton.addEventListener('click', () => {
+         allOn();
     });
     const effectStopButton = document.getElementById('effect-stop-btn');
     effectStopButton.addEventListener('click', () => {
