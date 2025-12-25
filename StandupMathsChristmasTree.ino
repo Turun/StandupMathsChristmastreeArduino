@@ -51,6 +51,11 @@ uint8_t stripPin = STRIP_PIN_DEFAULT;
 
 bool *ledState = nullptr; // dynamic array sized to numPixels
 
+// Global base color (default 50, 50, 50)
+uint8_t baseR = 50;
+uint8_t baseG = 50;
+uint8_t baseB = 50;
+
 // save which effect is currently running
 enum EffectType {
   EFFECT_NONE = 0,
@@ -116,7 +121,7 @@ void redrawPixels() {
   if (!pixels) return;
   for (uint16_t i = 0; i < numPixels; ++i) {
     if (ledState[i]) {
-      pixels->setPixelColor(i, pixels->Color(50, 50, 50));
+      pixels->setPixelColor(i, pixels->Color(baseR, baseG, baseB));
     } else {
       pixels->setPixelColor(i, pixels->Color(0, 0, 0));
     }
@@ -349,6 +354,36 @@ void handleGetNumLEDs() {
 
 }
 
+void handleSetBaseColor() {
+  String body = getRequestBody();
+  if (body.length() == 0) {
+    server.send(400, "text/plain", "no body");
+    return;
+  }
+
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, body);
+  if (err) {
+    server.send(400, "text/plain", "JSON parse error");
+    return;
+  }
+
+  // Update global variables
+  baseR = doc["r"] | baseR;
+  baseG = doc["g"] | baseG;
+  baseB = doc["b"] | baseB;
+
+  // Persist to NVS
+  prefs.putUChar("bR", baseR);
+  prefs.putUChar("bG", baseG);
+  prefs.putUChar("bB", baseB);
+
+  // Immediately update the strip
+  redrawPixels();
+
+  server.send(200, "text/plain", "color updated");
+}
+
 void handleStopEffects() {
   stopAllEffects();
   server.send(200, "text/plain", "effects stopped");
@@ -388,6 +423,11 @@ void setup() {
   // }
 
   prefs.begin("ledcfg", false);
+
+  // Restore saved colors
+  baseR = prefs.getUChar("bR", 50);
+  baseG = prefs.getUChar("bG", 50);
+  baseB = prefs.getUChar("bB", 50);
 
   // Restore number of LEDs if saved
   loadLedPositionsFromStorage();
@@ -444,6 +484,7 @@ void setup() {
   server.on("/effects/stop", HTTP_POST, handleStopEffects);
   server.on("/effects/blink", HTTP_POST, handleStartBlinkEffect);
   server.on("/effects/allon", HTTP_POST, handleAllOnEffect);
+  server.on("/effects/basecolor", HTTP_POST, handleSetBaseColor);
 
 
   server.onNotFound(handleNotFound);

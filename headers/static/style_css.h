@@ -106,6 +106,30 @@ video, canvas {
 .btn-group {
     display: flex;
     gap: 5px;
+    align-items: stretch; /* Ensures items have the same height */
+}
+
+.color-picker-wrapper {
+    display: flex;
+    align-items: center;
+    background-color: #4CAF50; /* Matching your green button color */
+    border-radius: 5px;
+    padding: 0 5px;
+    cursor: pointer;
+}
+
+#base-color-picker {
+    width: 40px;
+    height: 30px; /* Adjust based on your button padding */
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 0;
+}
+
+/* Optional: Make the picker look more like a button on hover */
+.color-picker-wrapper:hover {
+    background-color: #45a049;
 }
 
 select {

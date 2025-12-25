@@ -37,8 +37,13 @@ const char index_html[] PROGMEM = R"rawliteral(
         </div>
         <button disabled id="overview-btn-y">Show Overview Y</button>
         <button id="transmit-btn" class="action-btn">Transmit 3D pos</button>
-        <button id="effect-blink-btn" class="blue-btn">Blink</button>
-        <button id="effect-all-on-btn" class="blue-btn">All On</button>
+        <div class="btn-group">
+          <button id="effect-blink-btn" class="blue-btn">Blink</button>
+          <button id="effect-all-on-btn" class="blue-btn">All On</button>
+          <div class="color-picker-wrapper">
+            <input type="color" id="base-color-picker" value="#ffffff" title="Set LED Color">
+          </div>
+        </div>
         <button id="effect-stop-btn" class="action-btn">Stop Effects</button>
       </div>
 

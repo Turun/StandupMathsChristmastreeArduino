@@ -4,7 +4,7 @@
 const char ui_js[] PROGMEM = R"rawliteral(
 import {start_capturing, is_led_on, compute_lock_in_image_data_array} from "./capture_unidirectional.js";
 import { merge_and_transmit } from "./merge_directions.js";
-import {blink, allOn, stop} from "./effects.js";
+import {blink, allOn, stop, setBaseColor} from "./effects.js";
 
 let current_led_index = 0;
 
@@ -19,6 +19,22 @@ function test_is_led_on(max_led_index, max_cycle)  {
             }
         }
         console.log(out);
+    }
+}
+
+/**
+ * Ensures the function 'func' is called at most once every 'limit' milliseconds.
+ */
+function throttle(func, limit) {
+    let inThrottle;
+    return function() {
+        const args = arguments;
+        const context = this;
+        if (!inThrottle) {
+            func.apply(context, args);
+            inThrottle = true;
+            setTimeout(() => inThrottle = false, limit);
+        }
     }
 }
 
@@ -314,6 +330,14 @@ export function setup_ui(
     const effectStopButton = document.getElementById('effect-stop-btn');
     effectStopButton.addEventListener('click', () => {
          stop();
+    });
+    const colorPicker = document.getElementById('base-color-picker');
+    const throttledSetColor = throttle((hex) => {
+        setBaseColor(hex);
+    }, 100); 
+    colorPicker.addEventListener('input', (event) => {
+        const hexColor = event.target.value;
+        throttledSetColor(hexColor);
     });
 
     populate_led_select(num_leds);
