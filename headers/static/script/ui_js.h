@@ -2,25 +2,11 @@
 
 // Auto-generated from: ui.js
 const char ui_js[] PROGMEM = R"rawliteral(
-import {start_capturing, is_led_on, compute_lock_in_image_data_array} from "./capture_unidirectional.js";
+import {start_capturing} from "./capture_unidirectional.js";
 import { merge_and_transmit } from "./merge_directions.js";
 import {blink, allOn, stop, setBaseColor} from "./effects.js";
 
 let current_led_index = 0;
-
-function test_is_led_on(max_led_index, max_cycle)  {
-    for (let cycle = 0; cycle <= max_cycle; cycle += 1) {
-        let out = "";
-        for (let led_index = 0; led_index <= max_led_index; led_index += 1) {
-            if (is_led_on(led_index, cycle)) {
-                out += "x";
-            } else {
-                out += "_"
-            }
-        }
-        console.log(out);
-    }
-}
 
 /**
  * Ensures the function 'func' is called at most once every 'limit' milliseconds.
@@ -157,6 +143,9 @@ function visualize_single_led(
     contexts,
     led_positions_raw,
 ) {
+    console.error("no longer functional method!");
+    return;
+
     if (led_index == null || led_index < 0 || led_index >= num_leds) return;
 
     // recompute lock-in image for that LED
