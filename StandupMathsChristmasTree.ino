@@ -40,16 +40,16 @@
 
 
 #define LED_BUILTIN_PIN 2
-#define STRIP_PIN_DEFAULT 13
 #define STRIP_NUMPIXELS_DEFAULT 500
 
 Preferences prefs;
 
 Adafruit_NeoPixel *pixels = nullptr;
 uint16_t numPixels = STRIP_NUMPIXELS_DEFAULT;
-uint8_t stripPin = STRIP_PIN_DEFAULT;
+uint8_t STRIP_PIN_DEFAULT = 13;
 
-bool *ledState = nullptr; // dynamic array sized to numPixels
+// TODO: is this persisted across reboots? it should
+bool* ledMask = nullptr; // dynamic array sized to numPixels, for turning off individual leds.
 
 // Global base color (default 50, 50, 50)
 uint8_t baseR = 50;
@@ -92,9 +92,23 @@ void allocateStrip(uint16_t newNum) {
     delete pixels;
     pixels = nullptr;
   }
-  if (ledState) {
-    delete[] ledState;
-    ledState = nullptr;
+  if (ledMask) {
+    // TODO: persist ledMask to new allocation
+    /*
+    like we had in `set num LEDs` code:
+    ```
+    bool *oldMask = ledMask;
+    uint16_t oldNum = numPixels;
+    allocateStrip((uint16_t)newNum);
+    // copy old values
+    uint16_t minN = (oldNum < numPixels) ? oldNum : numPixels;
+    for (uint16_t i = 0; i < minN; ++i) {
+      ledMask[i] = oldMask[i];
+    }
+    ```
+    */
+    delete[] ledMask;
+    ledMask = nullptr;
   }
   if (ledPositions) {
     delete[] ledPositions;
@@ -104,23 +118,44 @@ void allocateStrip(uint16_t newNum) {
   numPixels = newNum;
   
   // Allocate new state
-  ledState = new bool[numPixels];
-  for (uint16_t i = 0; i < numPixels; ++i) ledState[i] = false;
+  ledMask = new bool[numPixels];
+  for (uint16_t i = 0; i < numPixels; ++i) {
+    ledMask[i] = false;
+  }
 
   // Allocate new positions array
   ledPositions = new Point[numPixels];
   
   // Instantiate new NeoPixel
-  pixels = new Adafruit_NeoPixel(numPixels, stripPin, NEO_GRB + NEO_KHZ800);
+  pixels = new Adafruit_NeoPixel(numPixels, STRIP_PIN_DEFAULT, NEO_GRB + NEO_KHZ800);
   pixels->begin();
   pixels->clear();
   pixels->show();
 }
 
+void setPixelColor(uint16_t index, uint8_t r, uint8_t g, uint8_t b) {
+  if (!pixels) return;
+  if (ledMask[index]) {
+    pixels->setPixelColor(index, pixels->Color(r, g, b));
+  } else {
+    pixels->setPixelColor(index, pixels->Color(0, 0, 0));
+  }
+  // pixels->show();
+}
+
+// pixels->show(), but guarded with a nullcheck
+void showPixelColors(){
+  if (!pixels){
+    return;
+  }
+  pixels->show();
+}
+
+// set all unmasked pixels to the base color and show the result
 void redrawPixels() {
   if (!pixels) return;
   for (uint16_t i = 0; i < numPixels; ++i) {
-    if (ledState[i]) {
+    if (ledMask[i]) {
       pixels->setPixelColor(i, pixels->Color(baseR, baseG, baseB));
     } else {
       pixels->setPixelColor(i, pixels->Color(0, 0, 0));
@@ -129,10 +164,10 @@ void redrawPixels() {
   pixels->show();
 }
 
-String ledStateToJsonString() {
+String ledMaskToJsonString() {
   JsonDocument doc;
   for (uint16_t i = 0; i < numPixels; ++i) {
-    doc[String(i)] = ledState[i];
+    doc[String(i)] = ledMask[i];
   }
   String out;
   serializeJson(doc, out);
@@ -187,9 +222,9 @@ void stopAllEffects() {
 
   // reset LEDs to a known state
   for (uint16_t i = 0; i < numPixels; ++i) {
-    ledState[i] = false;
+    setPixelColor(i, baseR, baseG, baseB);  // TODO: either we make this set all pixels off, or we add a button to turn all pixels off. At the moment, this is identical to pressing the all on button
   }
-  redrawPixels();
+  showPixelColors();
 }
 
 void startEffect(EffectType effect) {
@@ -207,18 +242,20 @@ void startEffect(EffectType effect) {
 // -------------------- The Effects -----------------------
 void updateBlinkEffect() {
   // elapsed time since effect started
-  unsigned long now = millis();
-  unsigned long elapsed = now - effectStartTimeMs;
+  unsigned long elapsed = millis() - effectStartTimeMs;
 
   char secs_on = 1;
   char secs_off = 1;
   bool on = ((elapsed / 1000) % (secs_on + secs_off)) <= secs_on;
 
   for (uint16_t i = 0; i < numPixels; ++i) {
-    ledState[i] = on;
+    if (on) {
+      setPixelColor(i, baseR, baseG, baseB); 
+    } else {
+      setPixelColor(i, 0, 0, 0); 
+    }
   }
-
-  redrawPixels();
+  showPixelColors();
 }
 
 // -------------------- HTTP handlers -----------------------
@@ -230,6 +267,7 @@ void handleMergeJs() { server.send_P(200, "application/javascript", merge_direct
 void handleCaptureJs() { server.send_P(200, "application/javascript", capture_unidirectional_js); }
 void handleEffectsJs() { server.send_P(200, "application/javascript", effects_js); }
 
+// turn LEDs on or off, according to the dict sent from the frontend. Used for LED position determination and for turning on/off individual LEDs
 void handleConfigureLEDs() {
   String body = getRequestBody();
   if (body.length() == 0) {
@@ -249,15 +287,11 @@ void handleConfigureLEDs() {
     int idx = atoi(kv.key().c_str());
     bool val = kv.value().as<bool>();
     if (idx >= 0 && idx < numPixels) {
-      ledState[idx] = val;
+      ledMask[idx] = val;  // TODO: might be worth thinking about a split of this method for disabling single LEDs and for determining the LED positions
     }
   }
 
   redrawPixels();
-
-  // // ensure LEDs are lit briefly
-  // delay(500);
-  
   server.send(200, "text/plain", "success");
 }
 
@@ -312,36 +346,16 @@ void handleSetNumLEDs() {
   }
   int newNum = doc["num"].as<int>();
 
-  if (newNum <= 0 || newNum > 1024) {
-    server.send(400, "text/plain", "num out of range (1..1024)");
+  if (newNum <= 0 || newNum > 8196) {
+    server.send(400, "text/plain", "num out of range (1..8196)");
     return;
   }
 
-  // preserve existing states up to the new size
-  bool *oldState = ledState;
-  uint16_t oldNum = numPixels;
   allocateStrip((uint16_t)newNum);
-  // copy old values
-  uint16_t minN = (oldNum < numPixels) ? oldNum : numPixels;
-  for (uint16_t i = 0; i < minN; ++i) {
-    ledState[i] = oldState[i];
-  }
-  // new ones already false
 
-  // free oldState (allocateStrip already deleted previous ledState/pixels so oldState is dangling unless we copied earlier)
-  // NOTE: we already replaced old ledState inside allocateStrip, so we must copy oldState BEFORE calling allocateStrip.
-  // To keep logic correct: we actually copied old above; in practice we used oldState captured earlier
-  // (the code above copied oldState after allocate - to be safe, we should rework).
-  // We'll correct: make a safe copy below. (But to keep this code concise in one paste, assume oldState copied above.)
-
-  // store configured number
   prefs.putUInt("num_leds", numPixels);
-
-  // store state
-  prefs.putString("led_state", ledStateToJsonString());
-
+  prefs.putString("led_state", ledMaskToJsonString());
   redrawPixels();
-
   server.send(200, "text/plain", "success");
 }
 
@@ -396,12 +410,7 @@ void handleStartBlinkEffect() {
 
 void handleAllOnEffect(){
   startEffect(EFFECT_ALL_ON);
-
-  for (uint16_t i = 0; i < numPixels; ++i) {
-    ledState[i] = true;
-  }
   redrawPixels();
-  
   server.send(200, "text/plain", "effect started");
 }
 
@@ -431,9 +440,11 @@ void setup() {
 
   // Restore number of LEDs if saved
   loadLedPositionsFromStorage();
+  Serial.print("Currently configured pixels ('led_positions'): ");
+  Serial.println(numPixels);
 
   uint32_t savedNum = prefs.getUInt("num_leds", 0);
-  if (savedNum >= 1 && savedNum <= 1024) {
+  if (savedNum >= 1 && savedNum <= 8196) {
     numPixels = (uint16_t)savedNum;
   } else {
     numPixels = STRIP_NUMPIXELS_DEFAULT;
@@ -441,7 +452,7 @@ void setup() {
 
   // allocate strip (pixels pointer and ledState)
   allocateStrip(numPixels);
-  Serial.print("Currently configured pixels: ");
+  Serial.print("Currently configured pixels ('num_leds'): ");
   Serial.println(numPixels);
 
 
@@ -486,79 +497,45 @@ void setup() {
   server.on("/effects/allon", HTTP_POST, handleAllOnEffect);
   server.on("/effects/basecolor", HTTP_POST, handleSetBaseColor);
 
-
   server.onNotFound(handleNotFound);
-
   server.begin();
   Serial.println("HTTP server started on port 80");
-
-
-
-  //// test functionality: light up all leds one after the other
-  //digitalWrite(LED_BUILTIN_PIN, LOW);
-  //delay(500);
-  //digitalWrite(LED_BUILTIN_PIN, HIGH);
-  //for (int i = 0; i<numPixels; i++) {
-  //  ledState[i] = true;
-  //  redrawPixels();
-  //  delay(10);
-  //  ledState[i] = false;
-  //}
-  //for (int i = 0; i<numPixels; i++) {
-  //    ledState[i] = false;
-  //}
-  //redrawPixels();
-  
-  //// test functionality: light up every xth led
-  //digitalWrite(LED_BUILTIN_PIN, LOW);
-  //delay(500);
-  //digitalWrite(LED_BUILTIN_PIN, HIGH);
-  //for (int mod = 5; mod<10; mod++){
-  //  for (int i = 0; i<numPixels; i++) {
-  //    if (i % mod == 0) {
-  //      ledState[i] = true;
-  //    } else {
-  //      ledState[i] = false;
-  //    }
-  //  }
-  //  redrawPixels();
-  //  delay(100);
-  //}
-  //for (int i = 0; i<numPixels; i++) {
-  //    ledState[i] = false;
-  //}
-  //redrawPixels();
   
   // test functionality: light up all leds at once
+  // first, make sure all are turned off
   digitalWrite(LED_BUILTIN_PIN, LOW);
+  for (int i = 0; i<numPixels; i++) {
+    setPixelColor(i, 0, 0, 0);
+  }
+  showPixelColors();
   delay(500);
+  // then turn them on one by one
   digitalWrite(LED_BUILTIN_PIN, HIGH);
   for (int i = 0; i<numPixels; i++) {
-    ledState[i] = true;
-    redrawPixels();
-    delay(10);
+    setPixelColor(i, baseR, baseG, baseB);
+    showPixelColors();
+    delay(5);  // if we have 1000 LEDs, this is the time it will take to light them all up in seconds
   }
   delay(500);
+  // then turn them all off again
   for (int i = 0; i<numPixels; i++) {
-    ledState[i] = false;
+    setPixelColor(i, 0, 0, 0);
   }
-  redrawPixels();
-  
+  showPixelColors();
   digitalWrite(LED_BUILTIN_PIN, LOW);
 }
 
 void loop() {
   server.handleClient();
 
-
   switch (currentEffect) {
     case EFFECT_BLINK:
       updateBlinkEffect();
       break;
-    case EFFECT_NONE:
+    case EFFECT_ALL_ON:
       // do nothing
       break;
-    case EFFECT_ALL_ON:
+    case EFFECT_NONE:
       // do nothing
       break;
     default:

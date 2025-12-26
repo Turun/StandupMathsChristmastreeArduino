@@ -24,17 +24,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         <button id="start-btn-y" class="action-btn">Capture Y Coords</button>
         <label for="led-select">Select LED:</label>
         <select id="led-select"></select>
-        <div class="btn-group">
-          <button disabled id="prev-led-btn-x">&lt;</button>
-          <button disabled id="visualize-btn-x">Show LED X</button>
-          <button disabled id="next-led-btn-x">&gt;</button>
-        </div>
         <button disabled id="overview-btn-x">Show Overview X</button>
-        <div class="btn-group">
-          <button disabled id="prev-led-btn-y">&lt;</button>
-          <button disabled id="visualize-btn-y">Show LED Y</button>
-          <button disabled id="next-led-btn-y">&gt;</button>
-        </div>
         <button disabled id="overview-btn-y">Show Overview Y</button>
         <button id="transmit-btn" class="action-btn">Transmit 3D pos</button>
         <div class="btn-group">

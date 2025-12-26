@@ -8,9 +8,8 @@ import {blink, allOn, stop, setBaseColor} from "./effects.js";
 
 let current_led_index = 0;
 
-/**
- * Ensures the function 'func' is called at most once every 'limit' milliseconds.
- */
+// Ensures the function 'func' is called at most once every 'limit' milliseconds.
+// Function calls that occur during the deadtime are silently dropped
 function throttle(func, limit) {
     let inThrottle;
     return function() {
@@ -24,83 +23,6 @@ function throttle(func, limit) {
     }
 }
 
-// populate the LED dropdown after analyzing
-function populate_led_select(num_leds) {
-    const select = document.getElementById('led-select');
-    select.innerHTML = '';
-    for (let i = 0; i < num_leds; i++) {
-        const option = document.createElement('option');
-        option.value = i;
-        option.textContent = 'LED ' + i;
-        select.appendChild(option);
-    }
-    select.value = current_led_index;
-}
-
-function setup_buttons(
-    num_leds,
-    num_cycles,
-    math_canvas,
-    diff_canvas,
-    diff_context,
-    contexts_x,
-    contexts_y,
-    led_positions_raw_x,
-    led_positions_raw_y,
-) {
-    const select = document.getElementById('led-select');
-    const prevBtnX = document.getElementById('prev-led-btn-x');
-    const visualizeBtnX = document.getElementById('visualize-btn-x');
-    const nextBtnX = document.getElementById('next-led-btn-x');
-    const overviewBtnX = document.getElementById('overview-btn-x');
-    const prevBtnY = document.getElementById('prev-led-btn-y');
-    const visualizeBtnY = document.getElementById('visualize-btn-y');
-    const nextBtnY = document.getElementById('next-led-btn-y');
-    const overviewBtnY = document.getElementById('overview-btn-y');
-
-    // keep dropdown in sync if the user manually changes it
-    select.addEventListener('change', () => {
-        current_led_index = parseInt(select.value);
-    });
-
-    // buttons for showing X view
-    prevBtnX.addEventListener('click', () => {
-        current_led_index = (current_led_index - 1 + num_leds) % num_leds;
-        select.value = current_led_index;
-        visualize_single_led(num_leds, num_cycles, current_led_index, math_canvas, diff_context, contexts_x, led_positions_raw_x);
-    });
-    visualizeBtnX.addEventListener('click', () => {
-        current_led_index = parseInt(select.value);
-        visualize_single_led(num_leds, num_cycles, current_led_index, math_canvas, diff_context, contexts_x, led_positions_raw_x);
-    });
-    nextBtnX.addEventListener('click', () => {
-        current_led_index = (current_led_index + 1) % num_leds;
-        select.value = current_led_index;
-        visualize_single_led(num_leds, num_cycles, current_led_index, math_canvas, diff_context, contexts_x, led_positions_raw_x);
-    });
-    overviewBtnX.addEventListener('click', () => {
-        visualize_led_positions(diff_context, diff_canvas, led_positions_raw_x); // show all LEDs
-    });
-
-    // buttons for showing Y view
-    prevBtnY.addEventListener('click', () => {
-        current_led_index = (current_led_index - 1 + num_leds) % num_leds;
-        select.value = current_led_index;
-        visualize_single_led(num_leds, num_cycles, current_led_index, math_canvas, diff_context, contexts_y, led_positions_raw_y);
-    });
-    visualizeBtnY.addEventListener('click', () => {
-        current_led_index = parseInt(select.value);
-        visualize_single_led(num_leds, num_cycles, current_led_index, math_canvas, diff_context, contexts_y, led_positions_raw_y);
-    });
-    nextBtnY.addEventListener('click', () => {
-        current_led_index = (current_led_index + 1) % num_leds;
-        select.value = current_led_index;
-        visualize_single_led(num_leds, num_cycles, current_led_index, math_canvas, diff_context, contexts_y, led_positions_raw_y);
-    });
-    overviewBtnY.addEventListener('click', () => {
-        visualize_led_positions(diff_context, diff_canvas, led_positions_raw_y); // show all LEDs
-    });
-}
 
 // visualize all LEDs as red markers with numbers
 export function visualize_led_positions(
@@ -133,80 +55,12 @@ export function visualize_led_positions(
     }
 }
 
-// visualize the lock-in difference image for a single LED
-function visualize_single_led(
-    num_leds,
-    num_cycles,
-    led_index,
-    math_canvas,
-    diff_context,
-    contexts,
-    led_positions_raw,
-) {
-    console.error("no longer functional method!");
-    return;
-
-    if (led_index == null || led_index < 0 || led_index >= num_leds) return;
-
-    // recompute lock-in image for that LED
-    const image_data_array = compute_lock_in_image_data_array(
-        led_index,
-        num_cycles,
-        math_canvas,
-        contexts,
-    );
-
-    // normalize image array
-    let minVal = Number.POSITIVE_INFINITY;
-    let maxVal = Number.NEGATIVE_INFINITY;
-    for (let i = 0; i < image_data_array.length; i++) {
-        if (image_data_array[i] < minVal) minVal = image_data_array[i];
-        if (image_data_array[i] > maxVal) maxVal = image_data_array[i];
-    }
-    const range = maxVal - minVal || 1; // avoid division by zero
-
-    // draw to diff_canvas
-    const canvas_image = diff_context.createImageData(math_canvas.width, math_canvas.height);
-    for (let i = 0; i < image_data_array.length; i++) {
-        const normalized = ((image_data_array[i] - minVal) / range) * 255;
-        canvas_image.data[4 * i] = normalized;
-        canvas_image.data[4 * i + 1] = normalized;
-        canvas_image.data[4 * i + 2] = normalized;
-        canvas_image.data[4 * i + 3] = 255; // fully opaque
-    }
-    diff_context.putImageData(canvas_image, 0, 0);
-
-    // overlay red marker for the LED position
-    const [x, y] = led_positions_raw[led_index];
-    if (x != null && y != null) {
-        const armLength = 10;   // length of each arm
-        const gap = 1;          // half of the 3px center gap
-        diff_context.strokeStyle = "red";
-        diff_context.lineWidth = 1;
-
-        diff_context.beginPath();
-        // horizontal left
-        diff_context.moveTo(x - armLength, y);
-        diff_context.lineTo(x - gap, y);
-        // horizontal right
-        diff_context.moveTo(x + gap, y);
-        diff_context.lineTo(x + armLength, y);
-        // vertical top
-        diff_context.moveTo(x, y - armLength);
-        diff_context.lineTo(x, y - gap);
-        // vertical bottom
-        diff_context.moveTo(x, y + gap);
-        diff_context.lineTo(x, y + armLength);
-        diff_context.stroke();
-    }
-}
 
 // Function to start the camera
 function startCamera(
     video,
     diff_canvas,
     math_canvas,
-    canvases,
 ) {
     // TODO: ideally we let the user pick. there is a navigator.mediaDevices.enumerateDevices(); method for that
     navigator.mediaDevices.getUserMedia({
@@ -223,12 +77,6 @@ function startCamera(
                 diff_canvas.height = video.videoHeight;
                 math_canvas.width = video.videoWidth;
                 math_canvas.height = video.videoHeight;
-
-                for (const canvas of canvases) {
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                }
-
                 console.log("Set sizes to " + video.videoWidth + "×" + video.videoHeight);
             });
         })
@@ -244,12 +92,7 @@ function startCamera(
 
 export function setup_ui(
     num_leds,
-    num_cycles,
     video,
-    canvases_x,
-    canvases_y,
-    contexts_x,
-    contexts_y,
     math_canvas,
     diff_canvas,
     diff_context,
@@ -257,24 +100,19 @@ export function setup_ui(
     led_positions_raw_y,
     led_positions_normalized,
 ) {
-    window.addEventListener('load', () => startCamera(video, diff_canvas, math_canvas, canvases_x.concat(canvases_y)));
+    window.addEventListener('load', () => startCamera(video, diff_canvas, math_canvas));
 
     const startButtonX = document.getElementById('start-btn-x');
     startButtonX.addEventListener('click', async () => {
         await start_capturing(
             num_leds,
-            num_cycles,
             video,
-            contexts_x,
             math_canvas,
             diff_canvas,
             diff_context,
             led_positions_raw_x,
         );
         visualize_led_positions(diff_context, diff_canvas, led_positions_raw_x);
-        document.getElementById('prev-led-btn-x').disabled = false;
-        document.getElementById('visualize-btn-x').disabled = false;
-        document.getElementById('next-led-btn-x').disabled = false;
         document.getElementById('overview-btn-x').disabled = false;
         
     });
@@ -283,18 +121,13 @@ export function setup_ui(
     startButtonY.addEventListener('click', async () => {
         await start_capturing(
             num_leds,
-            num_cycles,
             video,
-            contexts_y,
             math_canvas,
             diff_canvas,
             diff_context,
             led_positions_raw_y,
         );
         visualize_led_positions(diff_context, diff_canvas, led_positions_raw_y);
-        document.getElementById('prev-led-btn-y').disabled = false;
-        document.getElementById('visualize-btn-y').disabled = false;
-        document.getElementById('next-led-btn-y').disabled = false;
         document.getElementById('overview-btn-y').disabled = false;
     });
 
@@ -329,18 +162,31 @@ export function setup_ui(
         throttledSetColor(hexColor);
     });
 
-    populate_led_select(num_leds);
-    setup_buttons(
-        num_leds,
-        num_cycles,
-        math_canvas,
-        diff_canvas,
-        diff_context,
-        contexts_x,
-        contexts_y,
-        led_positions_raw_x,
-        led_positions_raw_y,
-    );
+    // populate led select dropdown
+    const select = document.getElementById('led-select');
+    // keep dropdown in sync if the user manually changes it
+    select.addEventListener('change', () => {
+        current_led_index = parseInt(select.value);
+    });
+    select.innerHTML = '';
+    for (let i = 0; i < num_leds; i++) {
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = 'LED ' + i;
+        select.appendChild(option);
+    }
+    select.value = current_led_index;
+
+    // button for showing X view
+    const overviewBtnX = document.getElementById('overview-btn-x');
+    overviewBtnX.addEventListener('click', () => {
+        visualize_led_positions(diff_context, diff_canvas, led_positions_raw_x); // show all LEDs
+    });
+    // button for showing Y view
+    const overviewBtnY = document.getElementById('overview-btn-y');
+    overviewBtnY.addEventListener('click', () => {
+        visualize_led_positions(diff_context, diff_canvas, led_positions_raw_y); // show all LEDs
+    });
 }
 
 
