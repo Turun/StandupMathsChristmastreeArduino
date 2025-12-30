@@ -22,11 +22,19 @@ const char index_html[] PROGMEM = R"rawliteral(
       <div class="controls-container">
         <button id="start-btn-x" class="action-btn">Capture X Coords</button>
         <button id="start-btn-y" class="action-btn">Capture Y Coords</button>
+
         <label for="led-select">Select LED:</label>
         <select id="led-select"></select>
+        <div class="btn-group">
+          <button id="mask-led-btn">Mask</button>
+          <button id="unmask-led-btn">Unmask</button>
+        </div>
+        <button id="unmask-all-btn" class="action-btn">Unmask All</button>
+
         <button disabled id="overview-btn-x">Show Overview X</button>
         <button disabled id="overview-btn-y">Show Overview Y</button>
         <button id="transmit-btn" class="action-btn">Transmit 3D pos</button>
+
         <div class="btn-group">
           <button id="effect-blink-btn" class="blue-btn">Blink</button>
           <button id="effect-all-on-btn" class="blue-btn">All On</button>

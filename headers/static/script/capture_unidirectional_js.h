@@ -96,6 +96,7 @@ export async function start_capturing(
 
     console.log(`Starting detection for ${num_leds} LEDs...`);
     stop();
+    await waitForNextCameraFrame(video);
 
     for (let i = 0; i < num_leds; i++) {
         // 1. Capture "ON" state

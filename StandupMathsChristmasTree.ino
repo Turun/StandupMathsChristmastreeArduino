@@ -573,8 +573,75 @@ void handleGetNumLEDs() {
   server.send(200, "application/json", s);
 }
 
-// TODO: handleMaskLED
-// TODO handleUnmaskLED  // for toggling bad LEDs 
+void handleMaskLED() {
+  String body = getRequestBody();
+  if (body.length() == 0) {
+    server.send(400, "text/plain", "no body");
+    return;
+  }
+
+  // parse {"num":24}
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, body);
+  if (err) {
+    server.send(400, "text/plain", String("JSON parse error: ") + err.c_str());
+    return;
+  }
+  if (!doc["num"].is<int>()) {
+    server.send(400,"text/plain","missing num");
+    return;
+  }
+  int led_index = doc["num"].as<int>();
+
+  if (led_index <= 0 || led_index > numPixels) {
+    server.send(400, "text/plain", "num out of range (1..8196)");
+    return;
+  }
+
+  ledMask[led_index] = false;
+
+  redrawPixels();
+  server.send(200, "text/plain", "success");
+}
+
+void handleUnmaskLED() {
+  String body = getRequestBody();
+  if (body.length() == 0) {
+    server.send(400, "text/plain", "no body");
+    return;
+  }
+
+  // parse {"num":24}
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, body);
+  if (err) {
+    server.send(400, "text/plain", String("JSON parse error: ") + err.c_str());
+    return;
+  }
+  if (!doc["num"].is<int>()) {
+    server.send(400,"text/plain","missing num");
+    return;
+  }
+  int led_index = doc["num"].as<int>();
+
+  if (led_index <= 0 || led_index > numPixels) {
+    server.send(400, "text/plain", "num out of range (1..8196)");
+    return;
+  }
+
+  ledMask[led_index] = true;
+
+  redrawPixels();
+  server.send(200, "text/plain", "success");
+}
+
+void handleUnmaskAll() {
+  for (int i = 0; i < numPixels; i++) {
+    ledMask[led_index] = true;
+  }
+  redrawPixels();
+  server.send(200, "text/plain", "success");
+}
 
 void handleSetBaseColor() {
   String body = getRequestBody();
@@ -679,7 +746,7 @@ void setup() {
   Serial.print("Currently configured pixels ('led_positions'): ");
   Serial.println(numPixels);
 
-  uint32_t savedNum = prefs.getUInt("num_leds", 0);
+  uint32_t savedNum = prefs.getUInt("num_leds", STRIP_NUMPIXELS_DEFAULT);
   if (savedNum >= 1 && savedNum <= 8196) {
     numPixels = (uint16_t)savedNum;
   } else {
@@ -727,6 +794,10 @@ void setup() {
 
   server.on("/set_num_leds", HTTP_POST, handleSetNumLEDs);
   server.on("/get_num_leds", HTTP_GET, handleGetNumLEDs);
+
+  server.on("/mask_led", HTTP_POST, handleMaskLED);
+  server.on("/unmask_led", HTTP_POST, handleUnmaskLED);
+  server.on("/unmask_all", HTTP_POST, handleUnmaskAll);
   
   server.on("/effects/stop", HTTP_POST, handleStopEffects);
   server.on("/effects/blink", HTTP_POST, handleStartBlinkEffect);
@@ -754,7 +825,7 @@ void setup() {
   for (int i = 0; i<numPixels; i++) {
     setPixelColor(i, baseR, baseG, baseB);
     showPixelColors();
-    delay(5);  // if we have 1000 LEDs, this is the time it will take to light them all up in seconds
+    delay(5);  // 5ms * 500 LEDs = 2.5s 
   }
   delay(500);
   // then turn them all off again

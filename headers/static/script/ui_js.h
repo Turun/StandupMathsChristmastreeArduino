@@ -4,7 +4,7 @@
 const char ui_js[] PROGMEM = R"rawliteral(
 import {start_capturing} from "./capture_unidirectional.js";
 import { merge_and_transmit } from "./merge_directions.js";
-import {blink, allOn, sweepingPlane, stop, setBaseColor, planeX, planeY, planeZ} from "./effects.js";
+import {blink, allOn, sweepingPlane, stop, setBaseColor, maskLed, unmaskLed, unmaskAll, planeX, planeY, planeZ} from "./effects.js";
 
 let current_led_index = 0;
 
@@ -53,6 +53,13 @@ export function visualize_led_positions(
         ctx.fillStyle = 'black';
         ctx.fillText(i, x, y);
     }
+
+    // and the currently selected LED in blue
+    const [x, y] = led_positions_raw[current_led_index];
+    ctx.fillStyle = 'blue';
+    ctx.beginPath();
+    ctx.arc(x, y, 7, 0, 2 * Math.PI);
+    ctx.fill();
 }
 
 
@@ -131,6 +138,45 @@ export function setup_ui(
         document.getElementById('overview-btn-y').disabled = false;
     });
 
+    // populate led select dropdown
+    const select = document.getElementById('led-select');
+    // keep dropdown in sync if the user manually changes it
+    select.addEventListener('change', () => {
+        current_led_index = parseInt(select.value);
+    });
+    select.innerHTML = '';
+    for (let i = 0; i < num_leds; i++) {
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = 'LED ' + i;
+        select.appendChild(option);
+    }
+    select.value = current_led_index;
+
+    const maskLEDButton = document.getElementById('mask-led-btn');
+    maskLEDButton.addEventListener('click', async () => {
+        maskLed(current_led_index);
+    });
+    const unmaskLEDButton = document.getElementById('unmask-led-btn');
+    unmaskLEDButton.addEventListener('click', async () => {
+        unmaskLed(current_led_index);
+    });
+    const unmaskAllButton = document.getElementById('unmask-all-btn');
+    unmaskAllButton.addEventListener('click', async () => {
+        unmaskAll();
+    });
+
+    // button for showing X view
+    const overviewBtnX = document.getElementById('overview-btn-x');
+    overviewBtnX.addEventListener('click', () => {
+        visualize_led_positions(diff_context, diff_canvas, led_positions_raw_x); // show all LEDs
+    });
+    // button for showing Y view
+    const overviewBtnY = document.getElementById('overview-btn-y');
+    overviewBtnY.addEventListener('click', () => {
+        visualize_led_positions(diff_context, diff_canvas, led_positions_raw_y); // show all LEDs
+    });
+
     const transmitButton = document.getElementById('transmit-btn');
     transmitButton.addEventListener('click', () => {
         merge_and_transmit(
@@ -178,32 +224,6 @@ export function setup_ui(
     const effectStopButton = document.getElementById('effect-stop-btn');
     effectStopButton.addEventListener('click', () => {
         stop();
-    });
-
-    // populate led select dropdown
-    const select = document.getElementById('led-select');
-    // keep dropdown in sync if the user manually changes it
-    select.addEventListener('change', () => {
-        current_led_index = parseInt(select.value);
-    });
-    select.innerHTML = '';
-    for (let i = 0; i < num_leds; i++) {
-        const option = document.createElement('option');
-        option.value = i;
-        option.textContent = 'LED ' + i;
-        select.appendChild(option);
-    }
-    select.value = current_led_index;
-
-    // button for showing X view
-    const overviewBtnX = document.getElementById('overview-btn-x');
-    overviewBtnX.addEventListener('click', () => {
-        visualize_led_positions(diff_context, diff_canvas, led_positions_raw_x); // show all LEDs
-    });
-    // button for showing Y view
-    const overviewBtnY = document.getElementById('overview-btn-y');
-    overviewBtnY.addEventListener('click', () => {
-        visualize_led_positions(diff_context, diff_canvas, led_positions_raw_y); // show all LEDs
     });
 }
 

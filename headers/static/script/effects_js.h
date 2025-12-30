@@ -55,6 +55,27 @@ export function getNumLeds(callback) {
     xhr.send();
 }
 
+export function maskLed(num) {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "mask_led", false);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send(JSON.stringify({ num }));
+}
+
+export function unmaskLed(num) {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "unmask_led", false);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send(JSON.stringify({ num }));
+}
+
+export function unmaskAll() {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "unmask_all", false);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send();
+}
+
 export function sweepingPlane() {
     var xhr = new XMLHttpRequest();
     xhr.open("POST", "effects/sweepingplane", false);
