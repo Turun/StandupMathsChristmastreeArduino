@@ -104,4 +104,11 @@ export function planeZ() {
     xhr.send();
 }
 
+export function concentricColor() {
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", "effects/concentriccolor", false);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send();
+}
+
 )rawliteral";

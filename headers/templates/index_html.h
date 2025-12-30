@@ -50,6 +50,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         <button id="effect-sweeping-plane-x-btn">Sweeping Plane X Effect</button>
         <button id="effect-sweeping-plane-y-btn">Sweeping Plane Y Effect</button>
         <button id="effect-sweeping-plane-z-btn">Sweeping Plane Z Effect</button>
+        <button id="effect-concentric-color-btn">Concentric Color Effect</button>
         <button id="effect-stop-btn" class="action-btn">Stop Effects</button>
       </div>
 

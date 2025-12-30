@@ -4,7 +4,7 @@
 const char ui_js[] PROGMEM = R"rawliteral(
 import {start_capturing} from "./capture_unidirectional.js";
 import { merge_and_transmit } from "./merge_directions.js";
-import {blink, allOn, sweepingPlane, stop, setBaseColor, maskLed, unmaskLed, unmaskAll, planeX, planeY, planeZ} from "./effects.js";
+import {blink, allOn, sweepingPlane, stop, setBaseColor, maskLed, unmaskLed, unmaskAll, planeX, planeY, planeZ, concentricColor} from "./effects.js";
 
 let current_led_index = 0;
 
@@ -230,6 +230,10 @@ export function setup_ui(
     const effectSweepingPlaneZButton = document.getElementById('effect-sweeping-plane-z-btn');
     effectSweepingPlaneZButton.addEventListener('click', () => {
         planeZ();
+    });
+    const effectConcentricColorButton = document.getElementById('effect-concentric-color-btn');
+    effectConcentricColorButton.addEventListener('click', () => {
+        concentricColor();
     });
     const effectStopButton = document.getElementById('effect-stop-btn');
     effectStopButton.addEventListener('click', () => {

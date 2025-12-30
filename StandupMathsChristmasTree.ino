@@ -54,6 +54,7 @@ enum EffectType {
   EFFECT_SWEEPING_PLANE_X,
   EFFECT_SWEEPING_PLANE_Y,
   EFFECT_SWEEPING_PLANE_Z,
+  EFFECT_CONCENTRIC_COLOR,
 };
 EffectType currentEffect = EFFECT_NONE;
 unsigned long effectStartTimeMs = 0;
@@ -61,6 +62,8 @@ unsigned long effectStartTimeMs = 0;
 // global data for sweeping planes
 float* effect_sweeping_plane_zposs = nullptr;
 float effect_sweeping_plane_hue = 0.0;
+// global data for concentric color
+float effect_concentric_color_hue = 0.0;
 
 
 // Global array to store LED positions
@@ -68,6 +71,10 @@ struct Point {
   float x, y, z;
 };
 Point* ledPositions = nullptr;
+
+struct Color {
+  uint8_t r, g, b;
+};
 
 WebServer server(80);
 
@@ -164,6 +171,49 @@ void redrawPixels() {
     }
   }
   pixels->show();
+}
+
+Color hsv_to_rgb(float h, float s, float v) {
+  // https://cs.stackexchange.com/a/127918 the end of the answer contains the good stuff 
+  float max = v;
+  float c = s*v;
+  float min = max - c;  // equivalent to v * (1-s)
+  float h_fraction = ((int)h % 60) / 60;
+  float r, g, b;
+  if (0 <= h && h < 60) {
+    r = max;
+    g = min;
+    b = min + h_fraction * c;
+  } else if (0 <= h && h < 60) {
+    r = max;
+    g = min + h_fraction * c;
+    b = min;
+  } else if (0 <= h && h < 60) {
+    r = min + h_fraction * c;
+    g = max;
+    b = min;
+  } else if (0 <= h && h < 60) {
+    r = min;
+    g = max;
+    b = min + h_fraction * c;
+  } else if (0 <= h && h < 60) {
+    r = min;
+    g = min + h_fraction * c;
+    b = max;
+  } else if (0 <= h && h < 60) {
+    r = min + h_fraction * c;
+    g = min;
+    b = max;
+  } else {
+    r = 1;
+    g = 1;
+    b = 1;
+  }
+  return Color{
+    (uint8_t)(r * 255.0), 
+    (uint8_t)(g * 255.0), 
+    (uint8_t)(b * 255.0), 
+  };
 }
 
 String ledMaskToJsonString() {
@@ -322,45 +372,7 @@ void updateSweepingPlaneEffect() {
   unsigned long elapsed = millis() - effectStartTimeMs;
   
   // calculate new color
-  // https://cs.stackexchange.com/a/127918 the end of the answer contains the good stuff
-  float h = effect_sweeping_plane_hue;
-  float s = 0.40;
-  float v = 0.20; 
-
-  float max = v;
-  float c = s*v;
-  float min = max - c;  // equivalent to v * (1-s)
-  float h_fraction = ((int)h % 60) / 60;
-  float r, g, b;
-  if (0 <= h && h < 60) {
-    r = max;
-    g = min;
-    b = min + h_fraction * c;
-  } else if (0 <= h && h < 60) {
-    r = max;
-    g = min + h_fraction * c;
-    b = min;
-  } else if (0 <= h && h < 60) {
-    r = min + h_fraction * c;
-    g = max;
-    b = min;
-  } else if (0 <= h && h < 60) {
-    r = min;
-    g = max;
-    b = min + h_fraction * c;
-  } else if (0 <= h && h < 60) {
-    r = min;
-    g = min + h_fraction * c;
-    b = max;
-  } else if (0 <= h && h < 60) {
-    r = min + h_fraction * c;
-    g = min;
-    b = max;
-  } else {
-    r = 1;
-    g = 1;
-    b = 1;
-  }
+  Color color = hsv_to_rgb(effect_sweeping_plane_hue, 1.0, 0.30);
 
   float max_z = 100;
   for (int i = 0; i<numPixels; i++) {
@@ -377,7 +389,7 @@ void updateSweepingPlaneEffect() {
   for (int i = 0; i<numPixels; i++) {
     float this_z = effect_sweeping_plane_zposs[i];
     if ((this_z - 0.1 < plane_z_position && plane_z_position < this_z + 0.1 ) && ledMask[i]) {
-      setPixelColor(i, r * 255, g * 255, b * 255);
+      setPixelColor(i, color.r, color.g, color.b);
     } else {
       setPixelColor(i, 0, 0, 0);
     }
@@ -402,16 +414,16 @@ void resetSweepingPlaneXYZEffect() {
 
   float min_z = -100;
   for (uint16_t i = 0; i < numPixels; ++i) {
-    switch effect {
+    switch (currentEffect) {
       case EFFECT_SWEEPING_PLANE_X:
-        effect_sweeping_plane_zposs[i] = ledPositions[i].x
+        effect_sweeping_plane_zposs[i] = ledPositions[i].x;
         break;
       case EFFECT_SWEEPING_PLANE_Y:
-        effect_sweeping_plane_zposs[i] = ledPositions[i].y
+        effect_sweeping_plane_zposs[i] = ledPositions[i].y;
         break;
       case EFFECT_SWEEPING_PLANE_Z:
       default:
-        effect_sweeping_plane_zposs[i] = ledPositions[i].z
+        effect_sweeping_plane_zposs[i] = ledPositions[i].z;
         break;
     }
     if (effect_sweeping_plane_zposs[i] < min_z) {
@@ -454,6 +466,52 @@ void updateSweepingPlaneXYZEffect() {
   // after plane is done, reset and choose new direction
   if (plane_z_position > max_z) {
     resetSweepingPlaneXYZEffect();
+  }
+}
+
+// colors that expand outwards from the center of the tree, cycles through random colors
+void updateConcentricColorEffect(){
+  unsigned long elapsed = millis() - effectStartTimeMs;
+
+  // calculate "center of gravity" of LEDs
+  // x and y are assumed to center on 0/0
+  float sum_z = 0.0;
+  int count = 0;
+  for (int i = 0; i < numPixels; i++) {
+    if (ledMask[i]) {
+      sum_z += ledPositions[i].z;
+      count += 1;
+    }
+  }
+  float center_z = sum_z/(float)count;
+
+  // calculate color
+  Color color = hsv_to_rgb(effect_concentric_color_hue, 1.0, 0.30);
+
+  // we do one unit per second, the tree is two units wide and deep, and probably higher than it is wide
+  float speed_in_units_per_ms = 0.001;
+
+  float radius_reached = elapsed * speed_in_units_per_ms;
+  float radius_reached_squared = radius_reached * radius_reached;
+  float max_radius_squared = 0.0;
+
+  for (int i = 0; i < numPixels; i++) {
+    if (!ledMask[i]){
+      continue;
+    }
+    float this_radius_squared = ledPositions[i].x * ledPositions[i].x + ledPositions[i].y * ledPositions[i].y + (ledPositions[i].z - center_z) * (ledPositions[i].z - center_z);
+    if (this_radius_squared < radius_reached_squared) {
+      setPixelColor(i, color.r, color.g, color.b);
+    }
+    if (this_radius_squared > max_radius_squared) {
+      max_radius_squared = this_radius_squared;
+    }
+  }
+
+  // if this color covers all, reset with new color
+  if (radius_reached > max_radius_squared) {
+    effect_concentric_color_hue = (xorshift32() & 0xFFFF) / 65536.0f * 360.0f;
+    effectStartTimeMs = millis();
   }
 }
 
@@ -637,7 +695,7 @@ void handleUnmaskLED() {
 
 void handleUnmaskAll() {
   for (int i = 0; i < numPixels; i++) {
-    ledMask[led_index] = true;
+    ledMask[i] = true;
   }
   redrawPixels();
   server.send(200, "text/plain", "success");
@@ -713,6 +771,12 @@ void handleSweepingPlaneYEffect() {
 void handleSweepingPlaneZEffect() {
   startEffect(EFFECT_SWEEPING_PLANE_Z);
   resetSweepingPlaneXYZEffect();
+  redrawPixels();
+  server.send(200, "text/plain", "effect started");
+}
+
+void handleConcentricColorEffect() {
+  startEffect(EFFECT_CONCENTRIC_COLOR);
   redrawPixels();
   server.send(200, "text/plain", "effect started");
 }
@@ -805,6 +869,7 @@ void setup() {
   server.on("/effects/planey", HTTP_POST, handleSweepingPlaneYEffect);
   server.on("/effects/planez", HTTP_POST, handleSweepingPlaneZEffect);
   server.on("/effects/sweepingplane", HTTP_POST, handleSweepingPlaneEffect);
+  server.on("/effects/concentriccolor", HTTP_POST, handleConcentricColorEffect);
   server.on("/effects/allon", HTTP_POST, handleAllOnEffect);
   server.on("/effects/basecolor", HTTP_POST, handleSetBaseColor);
 
@@ -850,6 +915,9 @@ void loop() {
     case EFFECT_SWEEPING_PLANE_Y:
     case EFFECT_SWEEPING_PLANE_Z:
       updateSweepingPlaneXYZEffect();
+      break;
+    case EFFECT_CONCENTRIC_COLOR:
+      updateConcentricColorEffect();
       break;
     case EFFECT_ALL_ON:
       // do nothing
