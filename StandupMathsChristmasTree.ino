@@ -10,6 +10,7 @@
 #include <Adafruit_NeoPixel.h>
 #include <Preferences.h>
 #include <Arduino.h>
+#include <math.h>
 
 #include <ArduinoJson.h>
 
@@ -43,17 +44,21 @@ uint8_t baseR = 50;
 uint8_t baseG = 50;
 uint8_t baseB = 50;
 
+
 // save which effect is currently running
 enum EffectType {
   EFFECT_NONE = 0,
   EFFECT_BLINK,
   EFFECT_ALL_ON,
-  // future:
-  // EFFECT_PULSE,
-  // EFFECT_CHASE,
+  EFFECT_SWEEPING_PLANE,
 };
 EffectType currentEffect = EFFECT_NONE;
 unsigned long effectStartTimeMs = 0;
+
+// global data for sweeping planes
+float* effect_sweeping_plane_zposs = nullptr;
+float effect_sweeping_plane_hue = 0.0;
+
 
 // Global array to store LED positions
 struct Point {
@@ -101,6 +106,10 @@ void allocateStrip(uint16_t newNum) {
     delete[] ledPositions;
     ledPositions = nullptr;
   }
+  if (effect_sweeping_plane_zposs) {
+    delete[] effect_sweeping_plane_zposs;
+    effect_sweeping_plane_zposs = nullptr;
+  }
 
   numPixels = newNum;
   
@@ -112,6 +121,8 @@ void allocateStrip(uint16_t newNum) {
 
   // Allocate new positions array
   ledPositions = new Point[numPixels];
+
+  effect_sweeping_plane_zposs = new float[numPixels];
   
   // Instantiate new NeoPixel
   pixels = new Adafruit_NeoPixel(numPixels, STRIP_PIN_DEFAULT, NEO_GRB + NEO_KHZ800);
@@ -201,6 +212,17 @@ void loadLedPositionsFromStorage() {
   Serial.println("LED positions successfully loaded from storage.");
 }
 
+uint32_t prng_state = 12345;
+uint32_t xorshift32() {
+  //https://en.wikipedia.org/wiki/Xorshift
+	/* Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs" */
+	uint32_t x = prng_state;
+	x ^= x << 13;
+	x ^= x >> 17;
+	x ^= x << 5;
+	return prng_state = x;
+}
+
 void stopAllEffects() {
   currentEffect = EFFECT_NONE;
   effectStartTimeMs = 0;
@@ -244,6 +266,127 @@ void updateBlinkEffect() {
     }
   }
   showPixelColors();
+}
+
+void resetSweepingPlaneEffect() {
+  effectStartTimeMs = millis();
+
+  // get new random numbers
+  prng_state = effectStartTimeMs;
+  for (int i = effectStartTimeMs % 10; i <= 20; i++) {
+    xorshift32();
+  }
+
+  // calculate new Z positions
+  float x = ((prng_state >>  0) & 0xFFFF) * (2.0f / 65536.0f) - 1.0f;
+  float y = ((prng_state >> 16) & 0xFFFF) * (2.0f / 65536.0f) - 1.0f;
+  float inv_len = 1/sqrtf(x*x + y*y);
+  float cos_theta = x * inv_len;
+  float sin_theta = y * inv_len;
+  xorshift32();
+  x = ((prng_state >>  0) & 0xFFFF) * (2.0f / 65536.0f) - 1.0f;
+  y = ((prng_state >> 16) & 0xFFFF) * (2.0f / 65536.0f) - 1.0f;
+  inv_len = 1/sqrtf(x*x + y*y);
+  float cos_alpha = x * inv_len;
+  float sin_alpha = y * inv_len;
+  
+  if (effect_sweeping_plane_zposs) {
+    delete[] effect_sweeping_plane_zposs;
+  }
+  effect_sweeping_plane_zposs = new float[numPixels];
+
+  float min_z = -100;
+  for (uint16_t i = 0; i < numPixels; ++i) {
+    float x = ledPositions[i].x;
+    float y = ledPositions[i].y;
+    float z = ledPositions[i].z;
+    effect_sweeping_plane_zposs[i] = sin_theta * (sin_alpha * x + cos_alpha * y) + cos_theta * z;
+    if (effect_sweeping_plane_zposs[i] < min_z) {
+      min_z = effect_sweeping_plane_zposs[i];
+    }
+  }
+
+  // already offset z positions to start from 0 and upwards
+  for (uint16_t i = 0; i < numPixels; ++i) {
+    effect_sweeping_plane_zposs[i] += min_z;
+  }
+
+  effect_sweeping_plane_hue = (prng_state & 0xFFFF) / 65536.0f * 360.0f;
+}
+
+void updateSweepingPlaneEffect() {
+  // elapsed time since effect started
+  unsigned long elapsed = millis() - effectStartTimeMs;
+  
+  // calculate new color
+  // https://cs.stackexchange.com/a/127918 the end of the answer contains the good stuff
+  float h = effect_sweeping_plane_hue;
+  float s = 0.40;
+  float v = 0.20; 
+
+  float max = v;
+  float c = s*v;
+  float min = max - c;  // equivalent to v * (1-s)
+  float h_fraction = ((int)h % 60) / 60;
+  float r, g, b;
+  if (0 <= h && h < 60) {
+    r = max;
+    g = min;
+    b = min + h_fraction * c;
+  } else if (0 <= h && h < 60) {
+    r = max;
+    g = min + h_fraction * c;
+    b = min;
+  } else if (0 <= h && h < 60) {
+    r = min + h_fraction * c;
+    g = max;
+    b = min;
+  } else if (0 <= h && h < 60) {
+    r = min;
+    g = max;
+    b = min + h_fraction * c;
+  } else if (0 <= h && h < 60) {
+    r = min;
+    g = min + h_fraction * c;
+    b = max;
+  } else if (0 <= h && h < 60) {
+    r = min + h_fraction * c;
+    g = min;
+    b = max;
+  } else {
+    r = 1;
+    g = 1;
+    b = 1;
+  }
+
+  float max_z = 100;
+  for (int i = 0; i<numPixels; i++) {
+    if (effect_sweeping_plane_zposs[i] > max_z) {
+      max_z = effect_sweeping_plane_zposs[i];
+    }
+  }
+
+  // sweep from minz to maxz with a constant speed -> effect needs to reset when the tree is done sweeping, not after a fixed time.
+  // we do one unit per second, the tree is two units wide and deep
+  float speed_in_units_per_ms = 0.001;
+  float plane_z_position = elapsed * speed_in_units_per_ms;
+
+  for (int i = 0; i<numPixels; i++) {
+    float this_z = effect_sweeping_plane_zposs[i];
+    if ((this_z - 0.1 < plane_z_position && plane_z_position < this_z + 0.1 ) && ledMask[i]) {
+      setPixelColor(i, r * 255, g * 255, b * 255);
+    } else {
+      setPixelColor(i, 0, 0, 0);
+    }
+  }
+  showPixelColors();
+  
+
+
+  // after plane is done, reset and choose new direction
+  if (plane_z_position > max_z) {
+    resetSweepingPlaneEffect();
+  }
 }
 
 // -------------------- HTTP handlers -----------------------
@@ -411,6 +554,13 @@ void handleAllOnEffect(){
   server.send(200, "text/plain", "effect started");
 }
 
+void handleSweepingPlaneEffect(){
+  startEffect(EFFECT_SWEEPING_PLANE);
+  resetSweepingPlaneEffect();
+  redrawPixels();
+  server.send(200, "text/plain", "effect started");
+}
+
 void handleNotFound() {
   server.send(404, "text/plain", "Not found");
 }
@@ -491,6 +641,7 @@ void setup() {
   
   server.on("/effects/stop", HTTP_POST, handleStopEffects);
   server.on("/effects/blink", HTTP_POST, handleStartBlinkEffect);
+  server.on("/effects/sweepingplane", HTTP_POST, handleSweepingPlaneEffect);
   server.on("/effects/allon", HTTP_POST, handleAllOnEffect);
   server.on("/effects/basecolor", HTTP_POST, handleSetBaseColor);
 

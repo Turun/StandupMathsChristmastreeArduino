@@ -55,5 +55,32 @@ export function getNumLeds(callback) {
     xhr.send();
 }
 
+export function sweepingPlane() {
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", "effects/sweepingplane", false);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send();
+}
+
+export function planeX() {
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", "effects/planex", false);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send();
+}
+
+export function planeY() {
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", "effects/planey", false);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send();
+}
+
+export function planeZ() {
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", "effects/planez", false);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send();
+}
 
 )rawliteral";

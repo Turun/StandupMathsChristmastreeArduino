@@ -34,6 +34,7 @@ const char index_html[] PROGMEM = R"rawliteral(
             <input type="color" id="base-color-picker" value="#ffffff" title="Set LED Color">
           </div>
         </div>
+        <button id="effect-sweeping-plane-btn">Sweeping Plane Effect</button>
         <button id="effect-stop-btn" class="action-btn">Stop Effects</button>
       </div>
 

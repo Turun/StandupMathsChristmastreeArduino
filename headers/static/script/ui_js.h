@@ -4,7 +4,7 @@
 const char ui_js[] PROGMEM = R"rawliteral(
 import {start_capturing} from "./capture_unidirectional.js";
 import { merge_and_transmit } from "./merge_directions.js";
-import {blink, allOn, stop, setBaseColor} from "./effects.js";
+import {blink, allOn, sweepingPlane, stop, setBaseColor} from "./effects.js";
 
 let current_led_index = 0;
 
@@ -36,8 +36,8 @@ export function visualize_led_positions(
     ctx.fillStyle = 'red';
     ctx.strokeStyle = 'red';
     ctx.font = '12px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
 
     for (let i = 0; i < led_positions_raw.length; i++) {
         const [x, y] = led_positions_raw[i];
@@ -46,12 +46,12 @@ export function visualize_led_positions(
         // draw small red circle
         ctx.fillStyle = 'red';
         ctx.beginPath();
-        ctx.arc(x, y, 5, 0, 2 * Math.PI);
+        ctx.arc(x, y, 7, 0, 2 * Math.PI);
         ctx.fill();
 
         // draw LED number
         ctx.fillStyle = 'black';
-        ctx.fillText(i, x + 6, y - 6);
+        ctx.fillText(i, x, y);
     }
 }
 
@@ -141,18 +141,6 @@ export function setup_ui(
         );
     });
 
-    const effectBlinkButton = document.getElementById('effect-blink-btn');
-    effectBlinkButton.addEventListener('click', () => {
-         blink();
-    });
-    const effectAllOnButton = document.getElementById('effect-all-on-btn');
-    effectAllOnButton.addEventListener('click', () => {
-         allOn();
-    });
-    const effectStopButton = document.getElementById('effect-stop-btn');
-    effectStopButton.addEventListener('click', () => {
-         stop();
-    });
     const colorPicker = document.getElementById('base-color-picker');
     const throttledSetColor = throttle((hex) => {
         setBaseColor(hex);
@@ -160,6 +148,24 @@ export function setup_ui(
     colorPicker.addEventListener('input', (event) => {
         const hexColor = event.target.value;
         throttledSetColor(hexColor);
+    });
+    const effectBlinkButton = document.getElementById('effect-blink-btn');
+    effectBlinkButton.addEventListener('click', () => {
+        setBaseColor(colorPicker.value);
+        blink();
+    });
+    const effectAllOnButton = document.getElementById('effect-all-on-btn');
+    effectAllOnButton.addEventListener('click', () => {
+        setBaseColor(colorPicker.value);
+        allOn();
+    });
+    const effectSweepingPlaneButton = document.getElementById('effect-sweeping-plane-btn');
+    effectSweepingPlaneButton.addEventListener('click', () => {
+        sweepingPlane();
+    });
+    const effectStopButton = document.getElementById('effect-stop-btn');
+    effectStopButton.addEventListener('click', () => {
+        stop();
     });
 
     // populate led select dropdown

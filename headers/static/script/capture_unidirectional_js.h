@@ -134,7 +134,50 @@ export async function start_capturing(
 
         led_positions_raw[i] = [bestX, bestY];
         // Update UI
-        visualize_led_positions(diff_context, diff_canvas, led_positions_raw);
+
+        // normalize image array
+        let minVal = Number.POSITIVE_INFINITY;
+        let maxVal = Number.NEGATIVE_INFINITY;
+        for (let i = 0; i < blurredDiff.length; i++) {
+            if (blurredDiff[i] < minVal) minVal = blurredDiff[i];
+            if (blurredDiff[i] > maxVal) maxVal = blurredDiff[i];
+        }
+        const range = maxVal - minVal || 1; // avoid division by zero
+
+        // draw to diff_canvas
+        const canvas_image = diff_context.createImageData(math_canvas.width, math_canvas.height);
+        for (let i = 0; i < blurredDiff.length; i++) {
+            const normalized = ((blurredDiff[i] - minVal) / range) * 255;
+            canvas_image.data[4 * i] = normalized;
+            canvas_image.data[4 * i + 1] = normalized;
+            canvas_image.data[4 * i + 2] = normalized;
+            canvas_image.data[4 * i + 3] = 255; // fully opaque
+        }
+        diff_context.putImageData(canvas_image, 0, 0);
+
+        // overlay red marker for the LED position
+        if (bestX != null && bestY != null) {
+            const armLength = 10;   // length of each arm
+            const gap = 1;          // half of the 3px center gap
+            diff_context.strokeStyle = "red";
+            diff_context.lineWidth = 1;
+
+            diff_context.beginPath();
+            // horizontal left
+            diff_context.moveTo(bestX - armLength, bestY);
+            diff_context.lineTo(bestX - gap, bestY);
+            // horizontal right
+            diff_context.moveTo(bestX + gap, bestY);
+            diff_context.lineTo(bestX + armLength, bestY);
+            // vertical top
+            diff_context.moveTo(bestX, bestY - armLength);
+            diff_context.lineTo(bestX, bestY - gap);
+            // vertical bottom
+            diff_context.moveTo(bestX, bestY + gap);
+            diff_context.lineTo(bestX, bestY + armLength);
+            diff_context.stroke();
+        }
+
         console.log(`LED ${i} found at [${bestX}, ${bestY}]`);
     }
     console.log("Capture complete.", led_positions_raw);
