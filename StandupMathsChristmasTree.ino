@@ -2,19 +2,6 @@
   ESP32 LEDStrip AP + Webserver + Adafruit NeoPixel control
   - AP: SSID "LEDStrip", PW "LEDStrip"
   - HTTP server on port 8080
-  - Serves files via included PROGMEM headers (see instructions)
-  - Endpoints:
-      GET  /                          -> index.html
-      GET  /static/style.css
-      GET  /static/script/main.js
-      GET  /static/script/ui.js
-      GET  /static/script/merge_directions.js
-      GET  /static/script/capture_unidirectional.js
-      POST /configure_leds            -> JSON dict string->bool, e.g. {"0":true,"1":false}
-      POST /set_led_positions         -> JSON positions saved to NV storage
-      GET  /get_saved_led_positions   -> returns saved JSON positions
-      POST /set_num_leds              -> JSON {"num":24} to change LED count (saved to NV)
-      GET  /get_num_leds              -> returns {"num": <current>}
 */
 
 #include <WiFi.h>
@@ -135,6 +122,7 @@ void allocateStrip(uint16_t newNum) {
 
 void setPixelColor(uint16_t index, uint8_t r, uint8_t g, uint8_t b) {
   if (!pixels) return;
+  if (index >= numPixels) return;
   if (ledMask[index]) {
     pixels->setPixelColor(index, pixels->Color(r, g, b));
   } else {
@@ -222,7 +210,7 @@ void stopAllEffects() {
 
   // reset LEDs to a known state
   for (uint16_t i = 0; i < numPixels; ++i) {
-    setPixelColor(i, baseR, baseG, baseB);  // TODO: either we make this set all pixels off, or we add a button to turn all pixels off. At the moment, this is identical to pressing the all on button
+    setPixelColor(i, 0, 0, 0);
   }
   showPixelColors();
 }
@@ -282,16 +270,23 @@ void handleConfigureLEDs() {
     server.send(400, "text/plain", String("JSON parse error: ") + err.c_str()); 
     return;
   }
+
+  // turn all LEDs off
+  for (uint16_t i = 0; i < numPixels; ++i) {
+    setPixelColor(i, 0, 0, 0); 
+  }
+
+  // turn LEDs on if so instructed
   JsonObject obj = doc.as<JsonObject>();
   for (JsonPair kv : obj) {
     int idx = atoi(kv.key().c_str());
     bool val = kv.value().as<bool>();
-    if (idx >= 0 && idx < numPixels) {
-      ledMask[idx] = val;  // TODO: might be worth thinking about a split of this method for disabling single LEDs and for determining the LED positions
-    }
+    if (val) {
+      setPixelColor(idx, baseR, baseG, baseB);
+    }  // if val is false, turn it off. But that has already been done
   }
+  showPixelColors();
 
-  redrawPixels();
   server.send(200, "text/plain", "success");
 }
 
@@ -365,8 +360,10 @@ void handleGetNumLEDs() {
   String s;
   serializeJson(out, s);
   server.send(200, "application/json", s);
-
 }
+
+// TODO: handleMaskLED
+// TODO handleUnmaskLED  // for toggling bad LEDs 
 
 void handleSetBaseColor() {
   String body = getRequestBody();

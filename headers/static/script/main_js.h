@@ -12,8 +12,9 @@ const char main_js[] PROGMEM = R"rawliteral(
 // merge_directions.js given two sets of pixel coordinates, merge, normalize, transmit to server
 
 import { setup_ui } from "./ui.js";
+import { getNumLeds } from "./effects.js";
 
-const num_leds = 500;  // TODO: make this configurable
+let num_leds = 123;  // TODO: make this configurable
 const led_positions_raw_x = [];
 const led_positions_raw_y = [];
 const led_positions_normalized = [];
@@ -26,6 +27,11 @@ const diff_context = diff_canvas.getContext("2d", { willReadFrequently: true });
 // for saving intermediate results
 const math_canvas = new OffscreenCanvas(100, 100);  // actual size will be set once we have a video feed
 const math_ctx = math_canvas.getContext('2d', { willReadFrequently: true });
+
+getNumLeds((new_num) => {
+    console.log(`got number of leds from backend, changing from ${num_leds} to ${new_num}`)
+    num_leds = new_num;
+});
 
 // on load this will run
 setup_ui(

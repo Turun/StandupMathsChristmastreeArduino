@@ -34,4 +34,26 @@ export function setBaseColor(hex) {
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.send(JSON.stringify({ r, g, b }));
 }
+
+export function setNumLeds(num) {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "set_num_leds", false);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send(JSON.stringify({ num }));
+}
+
+export function getNumLeds(callback) {
+    const xhr = new XMLHttpRequest();
+    xhr.open("GET", "get_num_leds", false);
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        const data = JSON.parse(xhr.responseText);
+        callback(data.num);
+      }
+    };
+    xhr.onerror = () => console.error("Network error in get_num_leds call");
+    xhr.send();
+}
+
+
 )rawliteral";

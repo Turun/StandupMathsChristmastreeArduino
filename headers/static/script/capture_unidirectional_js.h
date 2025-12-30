@@ -3,6 +3,7 @@
 // Auto-generated from: capture_unidirectional.js
 const char capture_unidirectional_js[] PROGMEM = R"rawliteral(
 import { visualize_led_positions } from "./ui.js";
+import {stop} from "./effects.js";
 
 /**
  * Helper to wait for the next camera frame.
@@ -94,6 +95,7 @@ export async function start_capturing(
     const height = math_canvas.height;
 
     console.log(`Starting detection for ${num_leds} LEDs...`);
+    stop();
 
     for (let i = 0; i < num_leds; i++) {
         // 1. Capture "ON" state
