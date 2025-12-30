@@ -51,6 +51,9 @@ enum EffectType {
   EFFECT_BLINK,
   EFFECT_ALL_ON,
   EFFECT_SWEEPING_PLANE,
+  EFFECT_SWEEPING_PLANE_X,
+  EFFECT_SWEEPING_PLANE_Y,
+  EFFECT_SWEEPING_PLANE_Z,
 };
 EffectType currentEffect = EFFECT_NONE;
 unsigned long effectStartTimeMs = 0;
@@ -389,6 +392,71 @@ void updateSweepingPlaneEffect() {
   }
 }
 
+void resetSweepingPlaneXYZEffect() {
+  effectStartTimeMs = millis();
+
+  if (effect_sweeping_plane_zposs) {
+    delete[] effect_sweeping_plane_zposs;
+  }
+  effect_sweeping_plane_zposs = new float[numPixels];
+
+  float min_z = -100;
+  for (uint16_t i = 0; i < numPixels; ++i) {
+    switch effect {
+      case EFFECT_SWEEPING_PLANE_X:
+        effect_sweeping_plane_zposs[i] = ledPositions[i].x
+        break;
+      case EFFECT_SWEEPING_PLANE_Y:
+        effect_sweeping_plane_zposs[i] = ledPositions[i].y
+        break;
+      case EFFECT_SWEEPING_PLANE_Z:
+      default:
+        effect_sweeping_plane_zposs[i] = ledPositions[i].z
+        break;
+    }
+    if (effect_sweeping_plane_zposs[i] < min_z) {
+      min_z = effect_sweeping_plane_zposs[i];
+    }
+  }
+
+  // already offset z positions to start from 0 and upwards
+  for (uint16_t i = 0; i < numPixels; ++i) {
+    effect_sweeping_plane_zposs[i] += min_z;
+  }
+}
+
+void updateSweepingPlaneXYZEffect() {
+  // elapsed time since effect started
+  unsigned long elapsed = millis() - effectStartTimeMs;
+  
+  float max_z = 100;
+  for (int i = 0; i<numPixels; i++) {
+    if (effect_sweeping_plane_zposs[i] > max_z) {
+      max_z = effect_sweeping_plane_zposs[i];
+    }
+  }
+
+  // sweep from minz to maxz with a constant speed -> effect needs to reset when the tree is done sweeping, not after a fixed time.
+  // we do one unit per second, the tree is two units wide and deep
+  float speed_in_units_per_ms = 0.001;
+  float plane_z_position = elapsed * speed_in_units_per_ms;
+
+  for (int i = 0; i<numPixels; i++) {
+    float this_z = effect_sweeping_plane_zposs[i];
+    if ((this_z - 0.1 < plane_z_position && plane_z_position < this_z + 0.1 ) && ledMask[i]) {
+      setPixelColor(i, baseR, baseG, baseB);
+    } else {
+      setPixelColor(i, 0, 0, 0);
+    }
+  }
+  showPixelColors();
+  
+  // after plane is done, reset and choose new direction
+  if (plane_z_position > max_z) {
+    resetSweepingPlaneXYZEffect();
+  }
+}
+
 // -------------------- HTTP handlers -----------------------
 void handleRoot() { server.send_P(200, "text/html", index_html); }
 void handleStyle() { server.send_P(200, "text/css", style_css); }
@@ -561,6 +629,27 @@ void handleSweepingPlaneEffect(){
   server.send(200, "text/plain", "effect started");
 }
 
+void handleSweepingPlaneXEffect() {
+  startEffect(EFFECT_SWEEPING_PLANE_X);
+  resetSweepingPlaneXYZEffect();
+  redrawPixels();
+  server.send(200, "text/plain", "effect started");
+}
+
+void handleSweepingPlaneYEffect() {
+  startEffect(EFFECT_SWEEPING_PLANE_Y);
+  resetSweepingPlaneXYZEffect();
+  redrawPixels();
+  server.send(200, "text/plain", "effect started");
+}
+
+void handleSweepingPlaneZEffect() {
+  startEffect(EFFECT_SWEEPING_PLANE_Z);
+  resetSweepingPlaneXYZEffect();
+  redrawPixels();
+  server.send(200, "text/plain", "effect started");
+}
+
 void handleNotFound() {
   server.send(404, "text/plain", "Not found");
 }
@@ -641,6 +730,9 @@ void setup() {
   
   server.on("/effects/stop", HTTP_POST, handleStopEffects);
   server.on("/effects/blink", HTTP_POST, handleStartBlinkEffect);
+  server.on("/effects/planex", HTTP_POST, handleSweepingPlaneXEffect);
+  server.on("/effects/planey", HTTP_POST, handleSweepingPlaneYEffect);
+  server.on("/effects/planez", HTTP_POST, handleSweepingPlaneZEffect);
   server.on("/effects/sweepingplane", HTTP_POST, handleSweepingPlaneEffect);
   server.on("/effects/allon", HTTP_POST, handleAllOnEffect);
   server.on("/effects/basecolor", HTTP_POST, handleSetBaseColor);
@@ -679,6 +771,14 @@ void loop() {
   switch (currentEffect) {
     case EFFECT_BLINK:
       updateBlinkEffect();
+      break;
+    case EFFECT_SWEEPING_PLANE:
+      updateSweepingPlaneEffect();
+      break;
+    case EFFECT_SWEEPING_PLANE_X:
+    case EFFECT_SWEEPING_PLANE_Y:
+    case EFFECT_SWEEPING_PLANE_Z:
+      updateSweepingPlaneXYZEffect();
       break;
     case EFFECT_ALL_ON:
       // do nothing

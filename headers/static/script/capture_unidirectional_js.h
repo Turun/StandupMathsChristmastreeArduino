@@ -3,7 +3,7 @@
 // Auto-generated from: capture_unidirectional.js
 const char capture_unidirectional_js[] PROGMEM = R"rawliteral(
 import { visualize_led_positions } from "./ui.js";
-import {stop} from "./effects.js";
+import {allOn, stop} from "./effects.js";
 
 /**
  * Helper to wait for the next camera frame.
@@ -181,6 +181,7 @@ export async function start_capturing(
         console.log(`LED ${i} found at [${bestX}, ${bestY}]`);
     }
     console.log("Capture complete.", led_positions_raw);
+    allOn();
 }
 
 )rawliteral";
