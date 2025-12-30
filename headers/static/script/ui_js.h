@@ -152,6 +152,16 @@ export function setup_ui(
         select.appendChild(option);
     }
     select.value = current_led_index;
+    const decrementButton = document.getElementById('btn-dec');
+    decrementButton.addEventListener('click', async () => {
+        current_led_index = (current_led_index + num_leds - 1) % num_leds;
+        select.value = current_led_index;
+    });
+    const incrementButton = document.getElementById('btn-inc');
+    incrementButton.addEventListener('click', async () => {
+        current_led_index = (current_led_index + 1) % num_leds;
+        select.value = current_led_index;
+    });
 
     const maskLEDButton = document.getElementById('mask-led-btn');
     maskLEDButton.addEventListener('click', async () => {

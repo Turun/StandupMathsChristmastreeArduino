@@ -24,7 +24,11 @@ const char index_html[] PROGMEM = R"rawliteral(
         <button id="start-btn-y" class="action-btn">Capture Y Coords</button>
 
         <label for="led-select">Select LED:</label>
-        <select id="led-select"></select>
+        <div class="btn-group">
+          <button id="btn-dec">&lt;</button>
+          <select id="led-select"></select>
+          <button id="btn-inc">&gt;</button>
+        </div>
         <div class="btn-group">
           <button id="mask-led-btn">Mask</button>
           <button id="unmask-led-btn">Unmask</button>
