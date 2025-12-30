@@ -3,8 +3,8 @@
 // Auto-generated from: ui.js
 const char ui_js[] PROGMEM = R"rawliteral(
 import {start_capturing} from "./capture_unidirectional.js";
-import { merge_and_transmit } from "./merge_directions.js";
-import {blink, allOn, sweepingPlane, stop, setBaseColor, maskLed, unmaskLed, unmaskAll, planeX, planeY, planeZ, concentricColor} from "./effects.js";
+import { merge_and_transmit, centerLEDBetweenNeighbors} from "./merge_directions.js";
+import {blink, allOn, sweepingPlane, stop, setBaseColor, maskLed, unmaskLed, unmaskAll, planeX, planeY, planeZ, concentricColor, configure_leds} from "./effects.js";
 
 let current_led_index = 0;
 
@@ -55,11 +55,13 @@ export function visualize_led_positions(
     }
 
     // and the currently selected LED in blue
-    const [x, y] = led_positions_raw[current_led_index];
-    ctx.fillStyle = 'blue';
-    ctx.beginPath();
-    ctx.arc(x, y, 7, 0, 2 * Math.PI);
-    ctx.fill();
+    if (led_positions_raw[current_led_index] != undefined) {
+        const [x, y] = led_positions_raw[current_led_index];
+        ctx.fillStyle = 'blue';
+        ctx.beginPath();
+        ctx.arc(x, y, 7, 0, 2 * Math.PI);
+        ctx.fill();
+    }
 }
 
 
@@ -96,6 +98,62 @@ function startCamera(
     }
 }
 
+// get the pixel coordinates where the user clicked in the video. But like, in video source coordinates.
+function getVideoCoords(e, video) {
+    const rect = video.getBoundingClientRect();
+
+    const videoAspect = video.videoWidth / video.videoHeight;
+    const elementAspect = rect.width / rect.height;
+
+    let drawWidth, drawHeight, offsetX, offsetY;
+    if (elementAspect > videoAspect) {
+        drawHeight = rect.height;
+        drawWidth = drawHeight * videoAspect;
+        offsetX = (rect.width - drawWidth) / 2;
+        offsetY = 0;
+    } else {
+        drawWidth = rect.width;
+        drawHeight = drawWidth / videoAspect;
+        offsetX = 0;
+        offsetY = (rect.height - drawHeight) / 2;
+    }
+
+    const x = e.clientX - rect.left - offsetX;
+    const y = e.clientY - rect.top - offsetY;
+
+    if (x < 0 || y < 0 || x > drawWidth || y > drawHeight) {
+        return null; // clicked in black bars
+    }
+
+    return {
+        x: (x / drawWidth) * video.videoWidth,
+        y: (y / drawHeight) * video.videoHeight
+    };
+}
+
+// Helper functions to check which tab is active (for your main.js)
+function getActiveTab() {
+  const activePanel = document.querySelector('.tab-panel.active');
+  return activePanel ? activePanel.id : null;
+}
+
+function isTabXActive() {
+  return getActiveTab() === 'x-coords';
+}
+
+function isTabYActive() {
+  return getActiveTab() === 'y-coords';
+}
+
+function current_led_changed() {
+    stop();
+    configure_leds({[current_led_index]: true});
+    if (isTabXActive()) {    
+        visualize_led_positions(diff_context, diff_canvas, led_positions_raw_x);
+    } else if (isTabYActive()) {
+        visualize_led_positions(diff_context, diff_canvas, led_positions_raw_y);
+    }
+}
 
 export function setup_ui(
     num_leds,
@@ -108,6 +166,27 @@ export function setup_ui(
     led_positions_normalized,
 ) {
     window.addEventListener('load', () => startCamera(video, diff_canvas, math_canvas));
+    video.addEventListener('click', (e) => {
+        // get the pixel that was clicked
+        const coords = getVideoCoords(e, video);
+        if (!coords) return;
+
+        if (isTabXActive()) {
+            led_positions_raw_x[current_led_index] = [coords.x, coords.y];
+            visualize_led_positions(diff_context, diff_canvas, led_positions_raw_x);
+        } else if (isTabYActive()) {
+            led_positions_raw_y[current_led_index] = [coords.x, coords.y];
+            visualize_led_positions(diff_context, diff_canvas, led_positions_raw_y);
+        }
+    });
+    const navTabX = document.getElementById('nav-tab-x');
+    navTabX.addEventListener('click', async () => {
+        visualize_led_positions(diff_context, diff_canvas, led_positions_raw_x);
+    });
+    const navTabY = document.getElementById('nav-tab-y');
+    navTabY.addEventListener('click', async () => {
+        visualize_led_positions(diff_context, diff_canvas, led_positions_raw_y);
+    });
 
     const startButtonX = document.getElementById('start-btn-x');
     startButtonX.addEventListener('click', async () => {
@@ -143,6 +222,7 @@ export function setup_ui(
     // keep dropdown in sync if the user manually changes it
     select.addEventListener('change', () => {
         current_led_index = parseInt(select.value);
+        current_led_changed();
     });
     select.innerHTML = '';
     for (let i = 0; i < num_leds; i++) {
@@ -156,11 +236,23 @@ export function setup_ui(
     decrementButton.addEventListener('click', async () => {
         current_led_index = (current_led_index + num_leds - 1) % num_leds;
         select.value = current_led_index;
+        current_led_changed();
     });
     const incrementButton = document.getElementById('btn-inc');
     incrementButton.addEventListener('click', async () => {
         current_led_index = (current_led_index + 1) % num_leds;
         select.value = current_led_index;
+        current_led_changed();
+    });
+    const centerLEDPositionXButton = document.getElementById('center-led-position-in-x-btn');
+    centerLEDPositionXButton.addEventListener('click', async () => {
+        centerLEDBetweenNeighbors(current_led_index, num_leds, led_positions_raw_x);
+        visualize_led_positions(diff_context, diff_canvas, led_positions_raw_x);
+    });
+    const centerLEDPositionYButton = document.getElementById('center-led-position-in-y-btn');
+    centerLEDPositionYButton.addEventListener('click', async () => {
+        centerLEDBetweenNeighbors(current_led_index, num_leds,  led_positions_raw_y);
+        visualize_led_positions(diff_context, diff_canvas, led_positions_raw_y);
     });
 
     const maskLEDButton = document.getElementById('mask-led-btn');
@@ -174,17 +266,6 @@ export function setup_ui(
     const unmaskAllButton = document.getElementById('unmask-all-btn');
     unmaskAllButton.addEventListener('click', async () => {
         unmaskAll();
-    });
-
-    // button for showing X view
-    const overviewBtnX = document.getElementById('overview-btn-x');
-    overviewBtnX.addEventListener('click', () => {
-        visualize_led_positions(diff_context, diff_canvas, led_positions_raw_x); // show all LEDs
-    });
-    // button for showing Y view
-    const overviewBtnY = document.getElementById('overview-btn-y');
-    overviewBtnY.addEventListener('click', () => {
-        visualize_led_positions(diff_context, diff_canvas, led_positions_raw_y); // show all LEDs
     });
 
     const transmitButton = document.getElementById('transmit-btn');
@@ -212,6 +293,11 @@ export function setup_ui(
     });
     const effectAllOnButton = document.getElementById('effect-all-on-btn');
     effectAllOnButton.addEventListener('click', () => {
+        setBaseColor(colorPicker.value);
+        allOn();
+    });
+    const effectAllOnButton2 = document.getElementById('effect-all-on-btn2');
+    effectAllOnButton2.addEventListener('click', () => {
         setBaseColor(colorPicker.value);
         allOn();
     });

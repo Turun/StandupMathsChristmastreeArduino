@@ -2,6 +2,17 @@
 
 // Auto-generated from: effects.js
 const char effects_js[] PROGMEM = R"rawliteral(
+/**
+ * Configures the LED state on the server.
+ * to be used like `configure_leds({ [5]: true })`
+ */
+export function configure_leds(dict) {
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", "configure_leds", false); 
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send(JSON.stringify(dict));
+}
+
 export function blink() {
     var xhr = new XMLHttpRequest();
     xhr.open("POST", "effects/blink", false);

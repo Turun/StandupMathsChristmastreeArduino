@@ -2,6 +2,16 @@
 
 // Auto-generated from: merge_directions.js
 const char merge_directions_js[] PROGMEM = R"rawliteral(
+// adjusts position of the given LED by setting the coordinates in the raw_led_positions list to the center between the two neighbors
+export function centerLEDBetweenNeighbors(led_index, num_leds, raw_led_positions) {
+    const prev = (led_index + num_leds - 1) % num_leds;
+    const next = (led_index + 1) % num_leds;
+    const [px, py] = raw_led_positions[prev];
+    const [nx, ny] = raw_led_positions[next];
+    raw_led_positions[led_index] = [(px + nx) / 2, (py + ny) / 2];
+}
+
+
 //given the two 2D position information, merge them into one 3D position information array and return it.
 function merge_led_positions(num_leds, led_positions_raw_x, led_positions_raw_y) {
     let led_positions_raw = []

@@ -2,8 +2,7 @@
 
 // Auto-generated from: capture_unidirectional.js
 const char capture_unidirectional_js[] PROGMEM = R"rawliteral(
-import { visualize_led_positions } from "./ui.js";
-import {allOn, stop} from "./effects.js";
+import {configure_leds, allOn, stop} from "./effects.js";
 
 /**
  * Helper to wait for the next camera frame.
@@ -22,16 +21,6 @@ function waitForNextCameraFrame(video) {
             });
         }
     });
-}
-
-/**
- * Configures the LED state on the server.
- */
-function configure_leds(dict) {
-    var xhr = new XMLHttpRequest();
-    xhr.open("POST", "configure_leds", false); 
-    xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.send(JSON.stringify(dict));
 }
 
 /**
