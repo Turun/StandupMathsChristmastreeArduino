@@ -4,7 +4,7 @@
 const char ui_js[] PROGMEM = R"rawliteral(
 import {start_capturing} from "./capture_unidirectional.js";
 import { merge_and_transmit, centerLEDBetweenNeighbors} from "./merge_directions.js";
-import {blink, allOn, sweepingPlane, stop, setBaseColor, maskLed, unmaskLed, unmaskAll, planeX, planeY, planeZ, concentricColor, configure_leds} from "./effects.js";
+import {blink, allOn, sweepingPlane, stop, setBaseColor, maskLed, unmaskLed, unmaskAll, planeX, planeY, planeZ, concentricColor, configure_leds, setNumLeds} from "./effects.js";
 
 let current_led_index = 0;
 
@@ -30,6 +30,9 @@ export function visualize_led_positions(
     diff_canvas,
     led_positions_raw,
 ) {
+    if (diff_context == undefined) {
+        return;
+    }
     const ctx = diff_context;
     ctx.clearRect(0, 0, diff_canvas.width, diff_canvas.height); // clear previous drawings
 
@@ -86,7 +89,7 @@ function startCamera(
                 diff_canvas.height = video.videoHeight;
                 math_canvas.width = video.videoWidth;
                 math_canvas.height = video.videoHeight;
-                console.log("Set sizes to " + video.videoWidth + "×" + video.videoHeight);
+                console.log(`Set sizes to ${video.videoWidth}×${video.videoHeight}`);
             });
         })
         .catch((error) => {
@@ -155,6 +158,28 @@ function current_led_changed() {
     }
 }
 
+// Log a message to the log panel
+export function my_log(message) {
+  const logContent = document.getElementById('log-content');
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  
+  // Get current time
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-US', { 
+    hour12: false, 
+    hour: '2-digit', 
+    minute: '2-digit', 
+    second: '2-digit' 
+  });
+  
+  entry.innerHTML = `<span class="log-time">[${timeStr}]</span>${message}`;
+  logContent.appendChild(entry);
+  
+  // Auto-scroll to bottom
+  logContent.scrollTop = logContent.scrollHeight;
+}
+
 export function setup_ui(
     num_leds,
     video,
@@ -216,6 +241,16 @@ export function setup_ui(
         visualize_led_positions(diff_context, diff_canvas, led_positions_raw_y);
         document.getElementById('overview-btn-y').disabled = false;
     });
+
+    
+    const numLedsInput = document.getElementById('num-leds-input');
+    const setNumLedsBtn = document.getElementById('set-num-leds-btn'); 
+    setNumLedsBtn.addEventListener('click', () => {
+        num_leds = parseInt(numLedsInput.value);
+        setNumLeds(num_leds);
+        allOn();
+    });
+    numLedsInput.value = num_leds;  // init the value to what we currently think the right value is. fetched from the backend
 
     // populate led select dropdown
     const select = document.getElementById('led-select');

@@ -63,8 +63,8 @@ const char index_html[] PROGMEM = R"rawliteral(
     .controls-container {
       display: flex;
       flex-direction: column;
-      min-width: 220px;
-      max-width: 250px;
+      min-width: 18em;
+      max-width: 18em;
       background-color: rgba(255, 255, 255, 0.9);
       border-radius: 8px;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -106,11 +106,14 @@ const char index_html[] PROGMEM = R"rawliteral(
       margin-bottom: -2px;
     }
 
-    /* Tab content area */
+
     .tab-content {
-      flex: 1;
-      overflow-y: auto;
+      flex: 1 1 auto;
+      overflow: hidden;
       padding: 15px;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
     }
 
     .tab-panel {
@@ -219,6 +222,65 @@ const char index_html[] PROGMEM = R"rawliteral(
       margin-top: 5px;
     }
 
+    input[type="number"] {
+      padding: 5px 10px;
+      font-size: 16px;
+      border: 2px solid #4CAF50;
+      border-radius: 5px;
+      flex: 1;
+      min-width: 4em;
+      text-align: center;
+    }
+
+    input[type="number"]:focus {
+      outline: none;
+      border-color: #45a049;
+      box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+    }
+
+    /* Log panel */
+    .log-panel {
+      margin-top: 15px;
+      border-top: 2px solid #e0e0e0;
+      padding-top: 10px;
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .log-header {
+      font-size: 14px;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 8px;
+      flex-shrink: 0;
+    }
+
+    .log-content {
+      background-color: #2c2c2c;
+      color: #00ff00;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      padding: 8px;
+      border-radius: 5px;
+      overflow: auto;
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+
+    .log-entry {
+      margin-bottom: 2px;
+      white-space: nowrap;
+      /* Don't wrap text */
+    }
+
+    .log-time {
+      color: #888;
+      margin-right: 8px;
+    }
+
     /* Responsive: stack canvases on narrow screens */
     @media (max-width: 1400px) {
       .main-layout {
@@ -260,7 +322,10 @@ const char index_html[] PROGMEM = R"rawliteral(
         <div class="tab-content">
           <!-- Common Controls (shown in X and Y tabs only) -->
           <div class="common-controls" id="common-controls">
-            <label for="led-select">Select LED:</label>
+            <div class="btn-group">
+              <input type="number" id="num-leds-input" min="1" value="100" placeholder="# LEDs">
+              <button id="set-num-leds-btn">Set num LEDs</button>
+            </div>
             <div class="btn-group">
               <button id="btn-dec">&lt;</button>
               <select id="led-select"></select>
@@ -302,6 +367,11 @@ const char index_html[] PROGMEM = R"rawliteral(
             <button id="effect-sweeping-plane-z-btn">Sweeping Plane Z</button>
             <button id="effect-concentric-color-btn">Concentric Color</button>
             <button id="effect-stop-btn" class="action-btn">Stop Effects</button>
+          </div>
+
+          <!-- Log Panel (visible on all tabs) -->
+          <div class="log-panel" id="log-panel">
+            <div class="log-content" id="log-content"></div>
           </div>
         </div>
       </div>

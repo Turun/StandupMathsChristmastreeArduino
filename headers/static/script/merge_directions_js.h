@@ -70,8 +70,7 @@ function normalize_led_positions(num_leds, led_positions_raw, led_positions_norm
         let norm_z = (raw_z - min_z) / span;  // will be left in space [0, ...]
         led_positions_normalized[i] = [norm_x, norm_y, norm_z];
     }
-    console.log("normalized pixel positions to the following values");
-    console.log(led_positions_normalized);
+    console.log("normalized pixel positions");
 }
 
 // after we have determined the led positions we can tell the server our results.
